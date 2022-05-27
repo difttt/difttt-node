@@ -1,9 +1,19 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use codec::{Decode, Encode, MaxEncodedLen};
 /// Edit this file to define custom logic or remove it if it is not needed.
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
 /// <https://docs.substrate.io/v3/runtime/frame>
 pub use pallet::*;
+use scale_info::TypeInfo;
+use sp_runtime::RuntimeDebug;
+use sp_std::{
+	cmp::{Eq, PartialEq},
+	vec::Vec,
+};
+
+#[cfg(feature = "std")]
+use serde::{Deserialize, Serialize};
 
 #[cfg(test)]
 mod mock;
@@ -14,8 +24,27 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
+#[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
+pub enum Triger {
+	Timer(u64, u64),    //insert_time,  timer_seconds
+	Schedule(u64, u64), //insert_time,  timestamp
+	PriceGT(u64, u64),  //insert_time,  price   //todo,price use float
+	PriceLT(u64, u64),  //insert_time,  price   //todo,price use float
+}
+
+#[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
+pub enum Action {
+	MailWithToken(Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>), //url, encrypted access_token by asymmetric encryption, revicer, title, body
+}
+
 #[frame_support::pallet]
 pub mod pallet {
+	use crate::Action;
+	use crate::Triger;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 
@@ -62,41 +91,44 @@ pub mod pallet {
 	// Dispatchable functions must be annotated with a weight and must return a DispatchResult.
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// An example dispatchable that takes a singles value as a parameter, writes the value to
-		/// storage and emits an event. This function must be dispatched by a signed extrinsic.
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-		pub fn do_something(origin: OriginFor<T>, something: u32) -> DispatchResult {
-			// Check that the extrinsic was signed and get the signer.
-			// This function will return an error if the extrinsic is not signed.
-			// https://docs.substrate.io/v3/runtime/origins
-			let who = ensure_signed(origin)?;
-
-			// Update storage.
-			<Something<T>>::put(something);
-
-			// Emit an event.
-			Self::deposit_event(Event::SomethingStored(something, who));
-			// Return a successful DispatchResultWithPostInfo
+		/// create_trigerid
+		#[pallet::weight(0)]
+		pub fn create_trigerid(origin: OriginFor<T>, triger: Triger) -> DispatchResult {
 			Ok(())
 		}
 
-		/// An example dispatchable that may throw a custom error.
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-		pub fn cause_error(origin: OriginFor<T>) -> DispatchResult {
-			let _who = ensure_signed(origin)?;
+		/// create_action
+		#[pallet::weight(0)]
+		pub fn create_action(origin: OriginFor<T>, action: Action) -> DispatchResult {
+			Ok(())
+		}
 
-			// Read a value from storage.
-			match <Something<T>>::get() {
-				// Return an error if the value has not been set.
-				None => return Err(Error::<T>::NoneValue.into()),
-				Some(old) => {
-					// Increment the value read from storage; will error in the event of overflow.
-					let new = old.checked_add(1).ok_or(Error::<T>::StorageOverflow)?;
-					// Update the value in storage with the incremented result.
-					<Something<T>>::put(new);
-					Ok(())
-				},
-			}
+		/// test
+		#[pallet::weight(0)]
+		pub fn create_recipe(
+			origin: OriginFor<T>,
+			triger_id: u64,
+			action_id: u64,
+		) -> DispatchResult {
+			Ok(())
+		}
+
+		/// test
+		#[pallet::weight(0)]
+		pub fn del_recipe(origin: OriginFor<T>, recipe_id: u64) -> DispatchResult {
+			Ok(())
+		}
+
+		/// test
+		#[pallet::weight(0)]
+		pub fn turn_on_recipe(origin: OriginFor<T>, recipe_id: u64) -> DispatchResult {
+			Ok(())
+		}
+
+		/// test
+		#[pallet::weight(0)]
+		pub fn turn_off_recipe(origin: OriginFor<T>, recipe_id: u64) -> DispatchResult {
+			Ok(())
 		}
 	}
 }
