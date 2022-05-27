@@ -93,7 +93,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// create_trigerid
 		#[pallet::weight(0)]
-		pub fn create_trigerid(origin: OriginFor<T>, triger: Triger) -> DispatchResult {
+		pub fn create_triger(origin: OriginFor<T>, triger: Triger) -> DispatchResult {
 			Ok(())
 		}
 
