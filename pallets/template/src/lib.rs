@@ -63,7 +63,7 @@ pub mod pallet {
 	use crate::{Action, Recipe, Triger};
 	use frame_support::{ensure, pallet_prelude::*};
 	use frame_system::pallet_prelude::*;
-	use sp_runtime::traits::{One, Saturating};
+	use sp_runtime::traits::One;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
@@ -124,6 +124,13 @@ pub mod pallet {
 		/// Event documentation should end with an array that provides descriptive names for event
 		/// parameters. [something, who]
 		SomethingStored(u32, T::AccountId),
+
+		TrigerCreated(u64, Triger),
+		ActionCreated(u64, Action),
+		RecipeCreated(u64, Recipe),
+		RecipeRemoved(u64),
+		RecipeTurnOned(u64),
+		RecipeTurnOffed(u64),
 	}
 
 	// Errors inform users that something went wrong.
@@ -151,9 +158,11 @@ pub mod pallet {
 			let user = ensure_signed(origin)?;
 			let triger_id = NextTrigerId::<T>::get().unwrap_or_default();
 
-			MapTriger::<T>::insert(triger_id, triger);
+			MapTriger::<T>::insert(triger_id, triger.clone());
 			TrigerOwner::<T>::insert(user, triger_id, ());
 			NextTrigerId::<T>::put(triger_id.saturating_add(One::one()));
+
+			Self::deposit_event(Event::TrigerCreated(triger_id, triger));
 
 			Ok(())
 		}
@@ -164,9 +173,11 @@ pub mod pallet {
 			let user = ensure_signed(origin)?;
 			let action_id = NextActionId::<T>::get().unwrap_or_default();
 
-			MapAction::<T>::insert(action_id, action);
+			MapAction::<T>::insert(action_id, action.clone());
 			ActionOwner::<T>::insert(user, action_id, ());
 			NextActionId::<T>::put(action_id.saturating_add(One::one()));
+
+			Self::deposit_event(Event::ActionCreated(action_id, action));
 
 			Ok(())
 		}
@@ -184,9 +195,13 @@ pub mod pallet {
 			ensure!(MapTriger::<T>::contains_key(&triger_id), Error::<T>::TrigerIdNotExist);
 			ensure!(MapAction::<T>::contains_key(&action_id), Error::<T>::ActionIdNotExist);
 
-			MapRecipe::<T>::insert(recipe_id, Recipe { triger_id, action_id, enable: true });
+			let recipe = Recipe { triger_id, action_id, enable: true };
+
+			MapRecipe::<T>::insert(recipe_id, recipe.clone());
 			RecipeOwner::<T>::insert(user, recipe_id, ());
 			NextRecipeId::<T>::put(recipe_id.saturating_add(One::one()));
+
+			Self::deposit_event(Event::RecipeCreated(recipe_id, recipe));
 
 			Ok(())
 		}
@@ -202,6 +217,8 @@ pub mod pallet {
 			RecipeOwner::<T>::remove(user, recipe_id);
 			MapRecipe::<T>::remove(recipe_id);
 
+			Self::deposit_event(Event::RecipeRemoved(recipe_id));
+
 			Ok(())
 		}
 
@@ -216,6 +233,7 @@ pub mod pallet {
 			MapRecipe::<T>::try_mutate(recipe_id, |recipe| -> DispatchResult {
 				if let Some(recipe) = recipe {
 					recipe.enable = true;
+					Self::deposit_event(Event::RecipeTurnOned(recipe_id));
 				}
 				Ok(())
 			})?;
@@ -234,6 +252,7 @@ pub mod pallet {
 			MapRecipe::<T>::try_mutate(recipe_id, |recipe| -> DispatchResult {
 				if let Some(recipe) = recipe {
 					recipe.enable = false;
+					Self::deposit_event(Event::RecipeTurnOffed(recipe_id));
 				}
 				Ok(())
 			})?;
