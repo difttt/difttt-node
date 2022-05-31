@@ -61,7 +61,7 @@ pub struct Recipe {
 #[frame_support::pallet]
 pub mod pallet {
 	use crate::{Action, Recipe, Triger};
-	use frame_support::pallet_prelude::*;
+	use frame_support::{ensure, pallet_prelude::*};
 	use frame_system::pallet_prelude::*;
 	use sp_runtime::traits::{One, Saturating};
 
@@ -133,6 +133,11 @@ pub mod pallet {
 		NoneValue,
 		/// Errors should have helpful documentation associated with them.
 		StorageOverflow,
+
+		TrigerIdNotExist,
+		ActionIdNotExist,
+		RecipeIdNotExist,
+		NotOwner,
 	}
 
 	// Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -176,6 +181,9 @@ pub mod pallet {
 			let user = ensure_signed(origin)?;
 			let recipe_id = NextRecipeId::<T>::get().unwrap_or_default();
 
+			ensure!(MapTriger::<T>::contains_key(&triger_id), Error::<T>::TrigerIdNotExist);
+			ensure!(MapAction::<T>::contains_key(&action_id), Error::<T>::ActionIdNotExist);
+
 			MapRecipe::<T>::insert(recipe_id, Recipe { triger_id, action_id, enable: true });
 			RecipeOwner::<T>::insert(user, recipe_id, ());
 			NextRecipeId::<T>::put(recipe_id.saturating_add(One::one()));
@@ -188,6 +196,9 @@ pub mod pallet {
 		pub fn del_recipe(origin: OriginFor<T>, recipe_id: u64) -> DispatchResult {
 			let user = ensure_signed(origin)?;
 
+			ensure!(MapRecipe::<T>::contains_key(&recipe_id), Error::<T>::RecipeIdNotExist);
+			ensure!(RecipeOwner::<T>::contains_key(&user, &recipe_id), Error::<T>::NotOwner);
+
 			RecipeOwner::<T>::remove(user, recipe_id);
 			MapRecipe::<T>::remove(recipe_id);
 
@@ -198,6 +209,9 @@ pub mod pallet {
 		#[pallet::weight(0)]
 		pub fn turn_on_recipe(origin: OriginFor<T>, recipe_id: u64) -> DispatchResult {
 			let user = ensure_signed(origin)?;
+
+			ensure!(MapRecipe::<T>::contains_key(&recipe_id), Error::<T>::RecipeIdNotExist);
+			ensure!(RecipeOwner::<T>::contains_key(&user, &recipe_id), Error::<T>::NotOwner);
 
 			MapRecipe::<T>::try_mutate(recipe_id, |recipe| -> DispatchResult {
 				if let Some(recipe) = recipe {
@@ -213,6 +227,9 @@ pub mod pallet {
 		#[pallet::weight(0)]
 		pub fn turn_off_recipe(origin: OriginFor<T>, recipe_id: u64) -> DispatchResult {
 			let user = ensure_signed(origin)?;
+
+			ensure!(MapRecipe::<T>::contains_key(&recipe_id), Error::<T>::RecipeIdNotExist);
+			ensure!(RecipeOwner::<T>::contains_key(user, &recipe_id), Error::<T>::NotOwner);
 
 			MapRecipe::<T>::try_mutate(recipe_id, |recipe| -> DispatchResult {
 				if let Some(recipe) = recipe {
