@@ -1,16 +1,14 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Decode, Encode, MaxEncodedLen};
+use frame_support::{traits::ConstU32, BoundedVec};
 /// Edit this file to define custom logic or remove it if it is not needed.
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
 /// <https://docs.substrate.io/v3/runtime/frame>
 pub use pallet::*;
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
-use sp_std::{
-	cmp::{Eq, PartialEq},
-	vec::Vec,
-};
+use sp_std::cmp::{Eq, PartialEq};
 
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
@@ -34,17 +32,35 @@ pub enum Triger {
 	PriceLT(u64, u64),  //insert_time,  price   //todo,price use float
 }
 
-#[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
+#[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+//#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+//#[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
 pub enum Action {
-	MailWithToken(Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>), //url, encrypted access_token by asymmetric encryption, revicer, title, body
+	MailWithToken(
+		BoundedVec<u8, ConstU32<128>>,
+		BoundedVec<u8, ConstU32<256>>,
+		BoundedVec<u8, ConstU32<128>>,
+		BoundedVec<u8, ConstU32<128>>,
+		BoundedVec<u8, ConstU32<256>>,
+	),
+	/* url, encrypted access_token
+	 * by asymmetric encryption,
+	 * revicer, title, body */
+	Oracle(BoundedVec<u8, ConstU32<32>>, BoundedVec<u8, ConstU32<128>>), // TokenName, SourceURL
+}
+
+#[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+// #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+// #[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
+pub struct Recipe {
+	triger_id: u64,
+	action_id: u64,
+	enable: u64,
 }
 
 #[frame_support::pallet]
 pub mod pallet {
-	use crate::Action;
-	use crate::Triger;
+	use crate::{Action, Recipe, Triger};
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 
@@ -61,11 +77,43 @@ pub mod pallet {
 
 	// The pallet's runtime storage items.
 	// https://docs.substrate.io/v3/runtime/storage
+
 	#[pallet::storage]
-	#[pallet::getter(fn something)]
-	// Learn more about declaring storage items:
-	// https://docs.substrate.io/v3/runtime/storage#declaring-storage-items
-	pub type Something<T> = StorageValue<_, u32>;
+	#[pallet::getter(fn triger_owner)]
+	pub type TrigerOwner<T: Config> =
+		StorageDoubleMap<_, Twox64Concat, T::AccountId, Twox64Concat, u64, (), OptionQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn action_owner)]
+	pub type ActionOwner<T: Config> =
+		StorageDoubleMap<_, Twox64Concat, T::AccountId, Twox64Concat, u64, (), OptionQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn recipe_owner)]
+	pub type RecipeOwner<T: Config> =
+		StorageDoubleMap<_, Twox64Concat, T::AccountId, Twox64Concat, u64, (), OptionQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn map_triger)]
+	pub(super) type MapTriger<T: Config> = StorageMap<_, Twox64Concat, u64, Triger>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn map_action)]
+	pub(super) type MapAction<T: Config> = StorageMap<_, Twox64Concat, u64, Action>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn map_recipe)]
+	pub(super) type MapRecipe<T: Config> = StorageMap<_, Twox64Concat, u64, Recipe>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn next_triger_id)]
+	pub type NextTrigerId<T: Config> = StorageValue<_, u64>;
+	#[pallet::storage]
+	#[pallet::getter(fn next_action_id)]
+	pub type NextActionId<T: Config> = StorageValue<_, u64>;
+	#[pallet::storage]
+	#[pallet::getter(fn next_recipe_id)]
+	pub type NextRecipeId<T: Config> = StorageValue<_, u64>;
 
 	// Pallets use events to inform users when important changes are made.
 	// https://docs.substrate.io/v3/runtime/events-and-errors
