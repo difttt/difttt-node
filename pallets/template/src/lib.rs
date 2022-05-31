@@ -55,7 +55,7 @@ pub enum Action {
 pub struct Recipe {
 	triger_id: u64,
 	action_id: u64,
-	enable: u64,
+	enable: bool,
 }
 
 #[frame_support::pallet]
@@ -63,6 +63,7 @@ pub mod pallet {
 	use crate::{Action, Recipe, Triger};
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
+	use sp_runtime::traits::{One, Saturating};
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
@@ -142,12 +143,26 @@ pub mod pallet {
 		/// create_trigerid
 		#[pallet::weight(0)]
 		pub fn create_triger(origin: OriginFor<T>, triger: Triger) -> DispatchResult {
+			let user = ensure_signed(origin)?;
+			let triger_id = NextTrigerId::<T>::get().unwrap_or_default();
+
+			MapTriger::<T>::insert(triger_id, triger);
+			TrigerOwner::<T>::insert(user, triger_id, ());
+			NextTrigerId::<T>::put(triger_id.saturating_add(One::one()));
+
 			Ok(())
 		}
 
 		/// create_action
 		#[pallet::weight(0)]
 		pub fn create_action(origin: OriginFor<T>, action: Action) -> DispatchResult {
+			let user = ensure_signed(origin)?;
+			let action_id = NextActionId::<T>::get().unwrap_or_default();
+
+			MapAction::<T>::insert(action_id, action);
+			ActionOwner::<T>::insert(user, action_id, ());
+			NextActionId::<T>::put(action_id.saturating_add(One::one()));
+
 			Ok(())
 		}
 
@@ -158,24 +173,54 @@ pub mod pallet {
 			triger_id: u64,
 			action_id: u64,
 		) -> DispatchResult {
+			let user = ensure_signed(origin)?;
+			let recipe_id = NextRecipeId::<T>::get().unwrap_or_default();
+
+			MapRecipe::<T>::insert(recipe_id, Recipe { triger_id, action_id, enable: true });
+			RecipeOwner::<T>::insert(user, recipe_id, ());
+			NextRecipeId::<T>::put(recipe_id.saturating_add(One::one()));
+
 			Ok(())
 		}
 
 		/// test
 		#[pallet::weight(0)]
 		pub fn del_recipe(origin: OriginFor<T>, recipe_id: u64) -> DispatchResult {
+			let user = ensure_signed(origin)?;
+
+			RecipeOwner::<T>::remove(user, recipe_id);
+			MapRecipe::<T>::remove(recipe_id);
+
 			Ok(())
 		}
 
 		/// test
 		#[pallet::weight(0)]
 		pub fn turn_on_recipe(origin: OriginFor<T>, recipe_id: u64) -> DispatchResult {
+			let user = ensure_signed(origin)?;
+
+			MapRecipe::<T>::try_mutate(recipe_id, |recipe| -> DispatchResult {
+				if let Some(recipe) = recipe {
+					recipe.enable = true;
+				}
+				Ok(())
+			})?;
+
 			Ok(())
 		}
 
 		/// test
 		#[pallet::weight(0)]
 		pub fn turn_off_recipe(origin: OriginFor<T>, recipe_id: u64) -> DispatchResult {
+			let user = ensure_signed(origin)?;
+
+			MapRecipe::<T>::try_mutate(recipe_id, |recipe| -> DispatchResult {
+				if let Some(recipe) = recipe {
+					recipe.enable = false;
+				}
+				Ok(())
+			})?;
+
 			Ok(())
 		}
 	}
