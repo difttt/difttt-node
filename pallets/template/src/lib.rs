@@ -56,20 +56,38 @@ pub struct Recipe {
 	triger_id: u64,
 	action_id: u64,
 	enable: bool,
+	times: u64,
+	done: bool,
 }
 
 #[frame_support::pallet]
 pub mod pallet {
 	use crate::{Action, Recipe, Triger};
+	use frame_support::traits::UnixTime;
 	use frame_support::{ensure, pallet_prelude::*};
 	use frame_system::pallet_prelude::*;
 	use sp_runtime::traits::One;
+	use sp_runtime::{
+		offchain::{
+			http,
+			storage::StorageValueRef,
+			storage_lock::{BlockAndTime, StorageLock},
+			Duration,
+		},
+		traits::BlockNumberProvider,
+	};
+	use sp_std::{collections::btree_map::BTreeMap, prelude::*};
+
+	const FETCH_TIMEOUT_PERIOD: u64 = 3000; // in milli-seconds
+	const LOCK_TIMEOUT_EXPIRATION: u64 = FETCH_TIMEOUT_PERIOD + 1000; // in milli-seconds
+	const LOCK_BLOCK_EXPIRATION: u32 = 3; // in block number
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		type TimeProvider: UnixTime;
 	}
 
 	#[pallet::pallet]
@@ -195,7 +213,7 @@ pub mod pallet {
 			ensure!(MapTriger::<T>::contains_key(&triger_id), Error::<T>::TrigerIdNotExist);
 			ensure!(MapAction::<T>::contains_key(&action_id), Error::<T>::ActionIdNotExist);
 
-			let recipe = Recipe { triger_id, action_id, enable: true };
+			let recipe = Recipe { triger_id, action_id, enable: true, times: 0, done: false };
 
 			MapRecipe::<T>::insert(recipe_id, recipe.clone());
 			RecipeOwner::<T>::insert(user, recipe_id, ());
@@ -258,6 +276,121 @@ pub mod pallet {
 			})?;
 
 			Ok(())
+		}
+	}
+
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn offchain_worker(_block_number: T::BlockNumber) {
+			log::info!("###### Hello from pallet-template-offchain-worker.");
+
+			// let parent_hash = <frame_system::Pallet<T>>::block_hash(block_number - 1u32.into());
+			// log::info!("###### Current block: {:?} (parent hash: {:?})", block_number, parent_hash);
+
+			let timestamp_now = T::TimeProvider::now();
+			log::info!("###### Current time: {:?} ", timestamp_now.as_secs());
+
+			let store_hashmap_recipe = StorageValueRef::local(b"template_ocw::recipe_task");
+
+			let mut map_recipe_task: BTreeMap<u64, Recipe>;
+			if let Ok(Some(info)) = store_hashmap_recipe.get::<BTreeMap<u64, Recipe>>() {
+				map_recipe_task = info;
+			} else {
+				map_recipe_task = BTreeMap::new();
+			}
+
+			let mut lock = StorageLock::<BlockAndTime<Self>>::with_block_and_time_deadline(
+				b"offchain-demo::lock",
+				LOCK_BLOCK_EXPIRATION,
+				Duration::from_millis(LOCK_TIMEOUT_EXPIRATION),
+			);
+
+			let mut map_running_action_recipe_task: BTreeMap<u64, Recipe> = BTreeMap::new();
+			if let Ok(_guard) = lock.try_lock() {
+				for (recipe_id, recipe) in MapRecipe::<T>::iter() {
+					if recipe.enable && !recipe.done {
+						if !map_recipe_task.contains_key(&recipe_id) {
+							map_recipe_task.insert(
+								recipe_id,
+								Recipe {
+									triger_id: recipe.triger_id,
+									action_id: recipe.action_id,
+									enable: true,
+									times: 0,
+									done: false,
+								},
+							);
+						}
+					} else {
+						map_recipe_task.remove(&recipe_id);
+					};
+				}
+
+				for (recipe_id, recipe) in map_recipe_task.iter_mut() {
+					let triger = MapTriger::<T>::get(recipe.triger_id);
+
+					match triger {
+						Some(Triger::Timer(insert_time, timer_seconds)) => {
+							if insert_time + recipe.times * timer_seconds > timestamp_now.as_secs()
+							{
+								(*recipe).times += 1;
+								log::info!("###### Current Triger times: {:?} ", recipe.times);
+
+								map_running_action_recipe_task.insert(*recipe_id, recipe.clone());
+							}
+						},
+						Some(Triger::Schedule(_, timestamp)) => {
+							if timestamp > timestamp_now.as_secs() {
+								(*recipe).times += 1;
+								(*recipe).done = true;
+
+								map_running_action_recipe_task.insert(*recipe_id, recipe.clone());
+							}
+						},
+						Some(Triger::PriceGT(_, price)) => {
+							//todo(check price gt)
+							(*recipe).times += 1;
+							(*recipe).done = true;
+
+							map_running_action_recipe_task.insert(*recipe_id, recipe.clone());
+						},
+						Some(Triger::PriceLT(_, price)) => {
+							//todo(check price gt)
+							(*recipe).times += 1;
+							(*recipe).done = true;
+							map_running_action_recipe_task.insert(*recipe_id, recipe.clone());
+						},
+						_ => {},
+					}
+				}
+
+				store_hashmap_recipe.set(&map_recipe_task);
+			};
+
+			//todo run action
+			for (recipe_id, recipe) in map_running_action_recipe_task.iter() {
+				let action = MapAction::<T>::get(recipe.action_id);
+				match action {
+					Some(Action::MailWithToken(url, token, revicer, title, body)) => {
+						//todo(publish email task)
+					},
+
+					Some(Action::Oracle(token_name, source_url)) => {
+						//todo(publish oracle task)
+					},
+					_ => {},
+				}
+			}
+		}
+	}
+
+	impl<T: Config> Pallet<T> {}
+
+	impl<T: Config> BlockNumberProvider for Pallet<T> {
+		type BlockNumber = T::BlockNumber;
+
+		fn current_block_number() -> Self::BlockNumber {
+			<frame_system::Pallet<T>>::block_number()
 		}
 	}
 }
