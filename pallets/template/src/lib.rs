@@ -63,10 +63,8 @@ pub struct Recipe {
 #[frame_support::pallet]
 pub mod pallet {
 	use crate::{Action, Recipe, Triger};
-	use frame_support::traits::UnixTime;
-	use frame_support::{ensure, pallet_prelude::*};
+	use frame_support::{ensure, pallet_prelude::*, traits::UnixTime};
 	use frame_system::pallet_prelude::*;
-	use sp_runtime::traits::One;
 	use sp_runtime::{
 		offchain::{
 			http,
@@ -74,7 +72,7 @@ pub mod pallet {
 			storage_lock::{BlockAndTime, StorageLock},
 			Duration,
 		},
-		traits::BlockNumberProvider,
+		traits::{BlockNumberProvider, One},
 	};
 	use sp_std::{collections::btree_map::BTreeMap, prelude::*};
 
@@ -139,8 +137,8 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// Event documentation should end with an array that provides descriptive names for event
-		/// parameters. [something, who]
+		/// Event documentation should end with an array that provides descriptive names for
+		/// event parameters. [something, who]
 		SomethingStored(u32, T::AccountId),
 
 		TrigerCreated(u64, Triger),
@@ -174,7 +172,10 @@ pub mod pallet {
 		#[pallet::weight(0)]
 		pub fn create_triger(origin: OriginFor<T>, triger: Triger) -> DispatchResult {
 			let user = ensure_signed(origin)?;
+
 			let triger_id = NextTrigerId::<T>::get().unwrap_or_default();
+			//get trigger_id for testing
+			log::info!("trigger_id: {}", triger_id);
 
 			MapTriger::<T>::insert(triger_id, triger.clone());
 			TrigerOwner::<T>::insert(user, triger_id, ());
@@ -284,8 +285,9 @@ pub mod pallet {
 		fn offchain_worker(_block_number: T::BlockNumber) {
 			log::info!("###### Hello from pallet-template-offchain-worker.");
 
-			// let parent_hash = <frame_system::Pallet<T>>::block_hash(block_number - 1u32.into());
-			// log::info!("###### Current block: {:?} (parent hash: {:?})", block_number, parent_hash);
+			// let parent_hash = <frame_system::Pallet<T>>::block_hash(block_number -
+			// 1u32.into()); log::info!("###### Current block: {:?} (parent hash: {:?})",
+			// block_number, parent_hash);
 
 			let timestamp_now = T::TimeProvider::now();
 			log::info!("###### Current time: {:?} ", timestamp_now.as_secs());
@@ -331,12 +333,17 @@ pub mod pallet {
 
 					match triger {
 						Some(Triger::Timer(insert_time, timer_seconds)) => {
-							if insert_time + recipe.times * timer_seconds > timestamp_now.as_secs()
+							if insert_time + recipe.times * timer_seconds >
+								timestamp_now.as_secs()
 							{
 								(*recipe).times += 1;
-								log::info!("###### Current Triger times: {:?} ", recipe.times);
+								log::info!(
+									"###### Current Triger times: {:?} ",
+									recipe.times
+								);
 
-								map_running_action_recipe_task.insert(*recipe_id, recipe.clone());
+								map_running_action_recipe_task
+									.insert(*recipe_id, recipe.clone());
 							}
 						},
 						Some(Triger::Schedule(_, timestamp)) => {
@@ -344,7 +351,8 @@ pub mod pallet {
 								(*recipe).times += 1;
 								(*recipe).done = true;
 
-								map_running_action_recipe_task.insert(*recipe_id, recipe.clone());
+								map_running_action_recipe_task
+									.insert(*recipe_id, recipe.clone());
 							}
 						},
 						Some(Triger::PriceGT(_, price)) => {
@@ -352,13 +360,15 @@ pub mod pallet {
 							(*recipe).times += 1;
 							(*recipe).done = true;
 
-							map_running_action_recipe_task.insert(*recipe_id, recipe.clone());
+							map_running_action_recipe_task
+								.insert(*recipe_id, recipe.clone());
 						},
 						Some(Triger::PriceLT(_, price)) => {
 							//todo(check price gt)
 							(*recipe).times += 1;
 							(*recipe).done = true;
-							map_running_action_recipe_task.insert(*recipe_id, recipe.clone());
+							map_running_action_recipe_task
+								.insert(*recipe_id, recipe.clone());
 						},
 						_ => {},
 					}
