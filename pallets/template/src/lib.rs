@@ -349,26 +349,36 @@ pub mod pallet {
 							}
 						},
 						Some(Triger::PriceGT(_, price)) => {
-							let price = Self::fetch_price().map_err(|_| "Failed to fetch price")?;
+							let fetch_price = match Self::fetch_price() {
+								Ok(fetch_price) => {
+									if price < fetch_price {
+										(*recipe).times += 1;
+										(*recipe).done = true;
 
-							if (price < fetch_price) {
-								(*recipe).times += 1;
-								(*recipe).done = true;
-
-								map_running_action_recipe_task.insert(*recipe_id, recipe.clone());
-							}
+										map_running_action_recipe_task
+											.insert(*recipe_id, recipe.clone());
+									}
+								},
+								Err(e)=>{
+									log::info!("###### fetch_price error {:?}", e);
+								}
+							};
 						},
 						Some(Triger::PriceLT(_, price)) => {
-							let fetch_price =
-								Self::fetch_price().map_err(|_| "Failed to fetch price")?;
+							let fetch_price = match Self::fetch_price() {
+								Ok(fetch_price) => {
+									if price > fetch_price {
+										(*recipe).times += 1;
+										(*recipe).done = true;
 
-							//todo(check price gt)
-							if (price > fetch_price) {
-								(*recipe).times += 1;
-								(*recipe).done = true;
-
-								map_running_action_recipe_task.insert(*recipe_id, recipe.clone());
-							}
+										map_running_action_recipe_task
+											.insert(*recipe_id, recipe.clone());
+									}
+								},
+								Err(e)=>{
+									log::info!("###### fetch_price error  {:?}", e);
+								}
+							};
 						},
 						_ => {},
 					}
@@ -396,7 +406,7 @@ pub mod pallet {
 
 	impl<T: Config> Pallet<T> {
 		/// Fetch current price and return the result in cents.
-		fn fetch_price() -> Result<u32, http::Error> {
+		fn fetch_price() -> Result<u64, http::Error> {
 			let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(2_000));
 			// Initiate an external HTTP GET request.
 			// This is using high-level wrappers from `sp_runtime`, for the low-level calls that
@@ -455,7 +465,7 @@ pub mod pallet {
 		/// Parse the price from the given JSON string using `lite-json`.
 		///
 		/// Returns `None` when parsing failed or `Some(price in cents)` when parsing is successful.
-		fn parse_price(price_str: &str) -> Option<u32> {
+		fn parse_price(price_str: &str) -> Option<u64> {
 			let val = lite_json::parse_json(price_str);
 			let price = match val.ok()? {
 				JsonValue::Object(obj) => {
@@ -470,7 +480,7 @@ pub mod pallet {
 			};
 
 			let exp = price.fraction_length.checked_sub(2).unwrap_or(0);
-			Some(price.integer as u32 * 100 + (price.fraction / 10_u64.pow(exp)) as u32)
+			Some(price.integer as u64 * 100 + (price.fraction / 10_u64.pow(exp)) as u64)
 		}
 	}
 
