@@ -191,7 +191,6 @@ pub mod pallet {
 		pub fn create_action(origin: OriginFor<T>, action: Action) -> DispatchResult {
 			let user = ensure_signed(origin)?;
 			let action_id = NextActionId::<T>::get().unwrap_or_default();
-
 			MapAction::<T>::insert(action_id, action.clone());
 			ActionOwner::<T>::insert(user, action_id, ());
 			NextActionId::<T>::put(action_id.saturating_add(One::one()));
