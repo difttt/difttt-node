@@ -52,24 +52,75 @@ fn create_action_should_work() {
 #[test]
 fn create_recipe_should_work() {
 	new_test_ext().execute_with(|| {
-		ActionOwner::<Test>::insert(1, 1, ());
-		TrigerOwner::<Test>::insert(1, 1, ());
-		assert_ok!(TemplateModule::create_recipe(Origin::signed(1), 1, 1)); //测试失败，可能是参数设置不正确
+		let timer = Triger::Timer(1, 1);
+		assert_ok!(TemplateModule::create_triger(Origin::signed(1), timer)); //枚举实例一，通过
+
+		let a_u8_const128: BoundedVec<u8, ConstU32<128>> = vec![1, 2, 3].try_into().unwrap();
+		let b_u8_const256: BoundedVec<u8, ConstU32<256>> = vec![4, 5, 6].try_into().unwrap();
+		let c_u8_const128: BoundedVec<u8, ConstU32<128>> = vec![1, 2, 3].try_into().unwrap();
+		let d_u8_const128: BoundedVec<u8, ConstU32<128>> = vec![1, 2, 3].try_into().unwrap();
+		let e_u8_const256: BoundedVec<u8, ConstU32<256>> = vec![4, 5, 6].try_into().unwrap();
+		let mail_with_token = Action::MailWithToken(
+			a_u8_const128,
+			b_u8_const256,
+			c_u8_const128,
+			d_u8_const128,
+			e_u8_const256,
+		);
+		assert_ok!(TemplateModule::create_action(Origin::signed(1), mail_with_token)); //枚举实例一，通过
+
+		assert_ok!(TemplateModule::create_recipe(Origin::signed(1), 0, 0)); //测试失败，可能是参数设置不正确
 	});
 }
 
 #[test]
 fn turn_on_recipe_should_work() {
 	new_test_ext().execute_with(|| {
-		RecipeOwner::<Test>::insert(1, 1, ());
-		assert_ok!(TemplateModule::turn_on_recipe(Origin::signed(1), 1)); //测试失败，可能是参数设置不正确
+		let timer = Triger::Timer(1, 1);
+		assert_ok!(TemplateModule::create_triger(Origin::signed(1), timer)); //枚举实例一，通过
+
+		let a_u8_const128: BoundedVec<u8, ConstU32<128>> = vec![1, 2, 3].try_into().unwrap();
+		let b_u8_const256: BoundedVec<u8, ConstU32<256>> = vec![4, 5, 6].try_into().unwrap();
+		let c_u8_const128: BoundedVec<u8, ConstU32<128>> = vec![1, 2, 3].try_into().unwrap();
+		let d_u8_const128: BoundedVec<u8, ConstU32<128>> = vec![1, 2, 3].try_into().unwrap();
+		let e_u8_const256: BoundedVec<u8, ConstU32<256>> = vec![4, 5, 6].try_into().unwrap();
+		let mail_with_token = Action::MailWithToken(
+			a_u8_const128,
+			b_u8_const256,
+			c_u8_const128,
+			d_u8_const128,
+			e_u8_const256,
+		);
+		assert_ok!(TemplateModule::create_action(Origin::signed(1), mail_with_token)); //枚举实例一，通过
+
+		assert_ok!(TemplateModule::create_recipe(Origin::signed(1), 0, 0)); //测试失败，可能是参数设置不正确
+
+		assert_ok!(TemplateModule::turn_on_recipe(Origin::signed(1), 0)); //测试失败，可能是参数设置不正确
 	});
 }
 
 #[test]
 fn turn_off_recipe_should_work() {
 	new_test_ext().execute_with(|| {
-		RecipeOwner::<Test>::insert(0, 0, ());
+		let timer = Triger::Timer(1, 1);
+		assert_ok!(TemplateModule::create_triger(Origin::signed(1), timer)); //枚举实例一，通过
+
+		let a_u8_const128: BoundedVec<u8, ConstU32<128>> = vec![1, 2, 3].try_into().unwrap();
+		let b_u8_const256: BoundedVec<u8, ConstU32<256>> = vec![4, 5, 6].try_into().unwrap();
+		let c_u8_const128: BoundedVec<u8, ConstU32<128>> = vec![1, 2, 3].try_into().unwrap();
+		let d_u8_const128: BoundedVec<u8, ConstU32<128>> = vec![1, 2, 3].try_into().unwrap();
+		let e_u8_const256: BoundedVec<u8, ConstU32<256>> = vec![4, 5, 6].try_into().unwrap();
+		let mail_with_token = Action::MailWithToken(
+			a_u8_const128,
+			b_u8_const256,
+			c_u8_const128,
+			d_u8_const128,
+			e_u8_const256,
+		);
+		assert_ok!(TemplateModule::create_action(Origin::signed(1), mail_with_token)); //枚举实例一，通过
+
+		assert_ok!(TemplateModule::create_recipe(Origin::signed(1), 0, 0)); //测试失败，可能是参数设置不正确
+
 		assert_ok!(TemplateModule::turn_off_recipe(Origin::signed(1), 0)); //测试失败，可能是参数设置不正确
 	});
 }
@@ -77,7 +128,25 @@ fn turn_off_recipe_should_work() {
 #[test]
 fn del_recipe_should_work() {
 	new_test_ext().execute_with(|| {
-		RecipeOwner::<Test>::insert(2, 2, ());
-		assert_ok!(TemplateModule::turn_off_recipe(Origin::signed(1), 2)); //测试失败，可能是参数设置不正确
+		let timer = Triger::Timer(1, 1);
+		assert_ok!(TemplateModule::create_triger(Origin::signed(1), timer)); //枚举实例一，通过
+
+		let a_u8_const128: BoundedVec<u8, ConstU32<128>> = vec![1, 2, 3].try_into().unwrap();
+		let b_u8_const256: BoundedVec<u8, ConstU32<256>> = vec![4, 5, 6].try_into().unwrap();
+		let c_u8_const128: BoundedVec<u8, ConstU32<128>> = vec![1, 2, 3].try_into().unwrap();
+		let d_u8_const128: BoundedVec<u8, ConstU32<128>> = vec![1, 2, 3].try_into().unwrap();
+		let e_u8_const256: BoundedVec<u8, ConstU32<256>> = vec![4, 5, 6].try_into().unwrap();
+		let mail_with_token = Action::MailWithToken(
+			a_u8_const128,
+			b_u8_const256,
+			c_u8_const128,
+			d_u8_const128,
+			e_u8_const256,
+		);
+		assert_ok!(TemplateModule::create_action(Origin::signed(1), mail_with_token)); //枚举实例一，通过
+
+		assert_ok!(TemplateModule::create_recipe(Origin::signed(1), 0, 0)); //测试失败，可能是参数设置不正确
+
+		assert_ok!(TemplateModule::turn_off_recipe(Origin::signed(1), 0)); //测试失败，可能是参数设置不正确
 	});
 }
