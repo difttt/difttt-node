@@ -63,10 +63,11 @@ pub struct Recipe {
 #[frame_support::pallet]
 pub mod pallet {
 	use crate::{Action, Recipe, Triger};
+	use codec::alloc::string::ToString;
+	use data_encoding::BASE64;
 	use frame_support::{ensure, pallet_prelude::*, traits::UnixTime};
 	use frame_system::pallet_prelude::*;
 	use lite_json::json::JsonValue;
-	use sp_runtime::traits::One;
 	use sp_runtime::{
 		offchain::{
 			http,
@@ -139,8 +140,8 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// Event documentation should end with an array that provides descriptive names for
-		/// event parameters. [something, who]
+		/// Event documentation should end with an array that provides descriptive names for event
+		/// parameters. [something, who]
 		SomethingStored(u32, T::AccountId),
 
 		TrigerCreated(u64, Triger),
@@ -174,10 +175,7 @@ pub mod pallet {
 		#[pallet::weight(0)]
 		pub fn create_triger(origin: OriginFor<T>, triger: Triger) -> DispatchResult {
 			let user = ensure_signed(origin)?;
-
 			let triger_id = NextTrigerId::<T>::get().unwrap_or_default();
-			//get trigger_id for testing
-			log::info!("trigger_id: {}", triger_id);
 
 			MapTriger::<T>::insert(triger_id, triger.clone());
 			TrigerOwner::<T>::insert(user, triger_id, ());
@@ -193,6 +191,7 @@ pub mod pallet {
 		pub fn create_action(origin: OriginFor<T>, action: Action) -> DispatchResult {
 			let user = ensure_signed(origin)?;
 			let action_id = NextActionId::<T>::get().unwrap_or_default();
+
 			MapAction::<T>::insert(action_id, action.clone());
 			ActionOwner::<T>::insert(user, action_id, ());
 			NextActionId::<T>::put(action_id.saturating_add(One::one()));
@@ -286,14 +285,14 @@ pub mod pallet {
 		fn offchain_worker(_block_number: T::BlockNumber) {
 			log::info!("###### Hello from pallet-template-offchain-worker.");
 
-			// let parent_hash = <frame_system::Pallet<T>>::block_hash(block_number -
-			// 1u32.into()); log::info!("###### Current block: {:?} (parent hash: {:?})",
-			// block_number, parent_hash);
+			// let parent_hash = <frame_system::Pallet<T>>::block_hash(block_number - 1u32.into());
+			// log::info!("###### Current block: {:?} (parent hash: {:?})", block_number,
+			// parent_hash);
 
 			let timestamp_now = T::TimeProvider::now();
 			log::info!("###### Current time: {:?} ", timestamp_now.as_secs());
 
-			let store_hashmap_recipe = StorageValueRef::local(b"template_ocw::recipe_task");
+			let store_hashmap_recipe = StorageValueRef::persistent(b"template_ocw::recipe_task");
 
 			let mut map_recipe_task: BTreeMap<u64, Recipe>;
 			if let Ok(Some(info)) = store_hashmap_recipe.get::<BTreeMap<u64, Recipe>>() {
@@ -334,17 +333,12 @@ pub mod pallet {
 
 					match triger {
 						Some(Triger::Timer(insert_time, timer_seconds)) => {
-							if insert_time + recipe.times * timer_seconds >
-								timestamp_now.as_secs()
+							if insert_time + recipe.times * timer_seconds > timestamp_now.as_secs()
 							{
 								(*recipe).times += 1;
-								log::info!(
-									"###### Current Triger times: {:?} ",
-									recipe.times
-								);
+								log::info!("###### Current Triger times: {:?} ", recipe.times);
 
-								map_running_action_recipe_task
-									.insert(*recipe_id, recipe.clone());
+								map_running_action_recipe_task.insert(*recipe_id, recipe.clone());
 							}
 						},
 						Some(Triger::Schedule(_, timestamp)) => {
@@ -352,40 +346,37 @@ pub mod pallet {
 								(*recipe).times += 1;
 								(*recipe).done = true;
 
-								map_running_action_recipe_task
-									.insert(*recipe_id, recipe.clone());
+								map_running_action_recipe_task.insert(*recipe_id, recipe.clone());
 							}
 						},
 						Some(Triger::PriceGT(_, price)) => {
-							let fetch_price = match Self::fetch_price() {
-								Ok(fetch_price) => {
+							let _fetch_price = match Self::fetch_price() {
+								Ok(fetch_price) =>
 									if price < fetch_price {
 										(*recipe).times += 1;
 										(*recipe).done = true;
 
 										map_running_action_recipe_task
 											.insert(*recipe_id, recipe.clone());
-									}
-								},
-								Err(e)=>{
+									},
+								Err(e) => {
 									log::info!("###### fetch_price error {:?}", e);
-								}
+								},
 							};
 						},
 						Some(Triger::PriceLT(_, price)) => {
-							let fetch_price = match Self::fetch_price() {
-								Ok(fetch_price) => {
+							let _fetch_price = match Self::fetch_price() {
+								Ok(fetch_price) =>
 									if price > fetch_price {
 										(*recipe).times += 1;
 										(*recipe).done = true;
 
 										map_running_action_recipe_task
 											.insert(*recipe_id, recipe.clone());
-									}
-								},
-								Err(e)=>{
+									},
+								Err(e) => {
 									log::info!("###### fetch_price error  {:?}", e);
-								}
+								},
 							};
 						},
 						_ => {},
@@ -396,7 +387,7 @@ pub mod pallet {
 			};
 
 			//todo run action
-			for (recipe_id, recipe) in map_running_action_recipe_task.iter() {
+			for (_recipe_id, recipe) in map_running_action_recipe_task.iter() {
 				let action = MapAction::<T>::get(recipe.action_id);
 				match action {
 					Some(Action::MailWithToken(url, token, revicer, title, body)) => {
@@ -404,7 +395,40 @@ pub mod pallet {
 					},
 
 					Some(Action::Oracle(token_name, source_url)) => {
+						let token_name = match scale_info::prelude::string::String::from_utf8(
+							token_name.to_vec(),
+						) {
+							Ok(v) => v,
+							Err(e) => {
+								log::info!("###### decode token_name error  {:?}", e);
+								continue
+							},
+						};
+						let source_url = match scale_info::prelude::string::String::from_utf8(
+							source_url.to_vec(),
+						) {
+							Ok(v) => v,
+							Err(e) => {
+								log::info!("###### decode source_url error  {:?}", e);
+								continue
+							},
+						};
+						let options = scale_info::prelude::format!(
+							"oracle_price --delay=60 --token_name={} --source_url={}",
+							token_name,
+							source_url
+						);
 						//todo(publish oracle task)
+						let rt = match Self::publish_task("xbgxwh/oracle_price:latest", &options, 3)
+						{
+							Ok(i) => {
+								log::info!("###### publish_task ok");
+							},
+
+							Err(e) => {
+								log::info!("###### publish_task error  {:?}", e);
+							},
+						};
 					},
 					_ => {},
 				}
@@ -441,7 +465,7 @@ pub mod pallet {
 			// Let's check the status code before we proceed to reading the response.
 			if response.code != 200 {
 				log::warn!("Unexpected status code: {}", response.code);
-				return Err(http::Error::Unknown);
+				return Err(http::Error::Unknown)
 			}
 
 			// Next we want to fully read the response body and collect it to a vector of bytes.
@@ -489,6 +513,53 @@ pub mod pallet {
 
 			let exp = price.fraction_length.checked_sub(2).unwrap_or(0);
 			Some(price.integer as u64 * 100 + (price.fraction / 10_u64.pow(exp)) as u64)
+		}
+
+		fn publish_task(
+			dockr_url: &str,
+			options: &str,
+			max_run_num: u64,
+		) -> Result<u64, http::Error> {
+			let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(2_000));
+			let dockr_url = BASE64.encode(dockr_url.as_bytes());
+			let options = BASE64.encode(options.as_bytes());
+
+			let url = "http://127.0.0.1:8000/".to_owned() +
+				&dockr_url.to_owned() +
+				"/" + &options.to_owned() +
+				&max_run_num.to_string();
+			let request_body = Vec::new();
+			let request = http::Request::post(&url, vec![request_body.clone()]);
+
+			let pending = request
+				.deadline(deadline)
+				.body(vec![request_body.clone()])
+				.send()
+				.map_err(|_| http::Error::IoError)?;
+
+			// Wait for response
+			let response =
+				pending.try_wait(deadline).map_err(|_| http::Error::DeadlineReached)??;
+
+			if response.code != 200 {
+				log::info!("Unexpected status code: {}", response.code);
+				return Err(http::Error::Unknown)
+			}
+
+			let body = response.body().collect::<Vec<u8>>();
+
+			// Create a str slice from the body.
+			let body_str = sp_std::str::from_utf8(&body).map_err(|_| {
+				log::info!("No UTF8 body");
+				http::Error::Unknown
+			})?;
+
+			if "ok" != body_str {
+				log::info!("publish task fail: {}", body_str);
+				return Err(http::Error::Unknown)
+			}
+
+			Ok(0)
 		}
 	}
 
