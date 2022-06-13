@@ -333,7 +333,7 @@ pub mod pallet {
 
 					match triger {
 						Some(Triger::Timer(insert_time, timer_seconds)) => {
-							if insert_time + recipe.times * timer_seconds > timestamp_now.as_secs()
+							if insert_time + recipe.times * timer_seconds < timestamp_now.as_secs()
 							{
 								(*recipe).times += 1;
 								log::info!("###### Current Triger times: {:?} ", recipe.times);
@@ -342,7 +342,7 @@ pub mod pallet {
 							}
 						},
 						Some(Triger::Schedule(_, timestamp)) => {
-							if timestamp > timestamp_now.as_secs() {
+							if timestamp < timestamp_now.as_secs() {
 								(*recipe).times += 1;
 								(*recipe).done = true;
 
@@ -527,7 +527,7 @@ pub mod pallet {
 			let url = "http://127.0.0.1:8000/".to_owned() +
 				&dockr_url.to_owned() +
 				"/" + &options.to_owned() +
-				&max_run_num.to_string();
+				"/" + &max_run_num.to_string();
 			let request_body = Vec::new();
 			let request = http::Request::post(&url, vec![request_body.clone()]);
 
