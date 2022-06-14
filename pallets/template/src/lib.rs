@@ -336,7 +336,11 @@ pub mod pallet {
 							if insert_time + recipe.times * timer_seconds < timestamp_now.as_secs()
 							{
 								(*recipe).times += 1;
-								log::info!("###### Current Triger times: {:?} ", recipe.times);
+								log::info!(
+									"###### recipe {:?} Current Triger times: {:?} ",
+									recipe_id,
+									recipe.times
+								);
 
 								map_running_action_recipe_task.insert(*recipe_id, recipe.clone());
 							}
@@ -520,26 +524,27 @@ pub mod pallet {
 			options: &str,
 			max_run_num: u64,
 		) -> Result<u64, http::Error> {
-			let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(2_000));
+			let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(10_000));
 			let dockr_url = BASE64.encode(dockr_url.as_bytes());
 			let options = BASE64.encode(options.as_bytes());
 
+			//let url = "https://reqbin.com/echo/post/json";
 			let url = "http://127.0.0.1:8000/".to_owned() +
 				&dockr_url.to_owned() +
 				"/" + &options.to_owned() +
 				"/" + &max_run_num.to_string();
-			let request_body = Vec::new();
-			let request = http::Request::post(&url, vec![request_body.clone()]);
 
-			let pending = request
-				.deadline(deadline)
-				.body(vec![request_body.clone()])
-				.send()
-				.map_err(|_| http::Error::IoError)?;
+			let request = http::Request::get(&url).add_header("content-type", "application/json");
 
-			// Wait for response
-			let response =
-				pending.try_wait(deadline).map_err(|_| http::Error::DeadlineReached)??;
+			let pending = request.deadline(deadline).send().map_err(|e| {
+				log::info!("####post pending error: {:?}", e);
+				http::Error::IoError
+			})?;
+
+			let response = pending.try_wait(deadline).map_err(|e| {
+				log::info!("####post response error: {:?}", e);
+				http::Error::DeadlineReached
+			})??;
 
 			if response.code != 200 {
 				log::info!("Unexpected status code: {}", response.code);
