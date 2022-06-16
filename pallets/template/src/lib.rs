@@ -66,7 +66,10 @@ pub mod pallet {
 	use codec::alloc::string::ToString;
 	use data_encoding::BASE64;
 	use frame_support::{ensure, pallet_prelude::*, traits::UnixTime};
-	use frame_system::pallet_prelude::*;
+	use frame_system::{
+		offchain::{CreateSignedTransaction, SubmitTransaction},
+		pallet_prelude::*,
+	};
 	use lite_json::json::JsonValue;
 	use sp_runtime::{
 		offchain::{
@@ -77,6 +80,7 @@ pub mod pallet {
 		},
 		traits::{BlockNumberProvider, One},
 	};
+
 	use sp_std::{collections::btree_map::BTreeMap, prelude::*};
 
 	const FETCH_TIMEOUT_PERIOD: u64 = 3000; // in milli-seconds
@@ -85,10 +89,20 @@ pub mod pallet {
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + CreateSignedTransaction<Call<Self>> {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		type TimeProvider: UnixTime;
+
+		/// The overarching dispatch call type.
+		type Call: From<Call<Self>>;
+
+		/// A configuration for base priority of unsigned transactions.
+		///
+		/// This is exposed so that it can be tuned for particular runtime, when
+		/// multiple pallets send unsigned transactions.
+		#[pallet::constant]
+		type UnsignedPriority: Get<TransactionPriority>;
 	}
 
 	#[pallet::pallet]
@@ -150,6 +164,7 @@ pub mod pallet {
 		RecipeRemoved(u64),
 		RecipeTurnOned(u64),
 		RecipeTurnOffed(u64),
+		RecipeDone(u64),
 	}
 
 	// Errors inform users that something went wrong.
@@ -164,6 +179,7 @@ pub mod pallet {
 		ActionIdNotExist,
 		RecipeIdNotExist,
 		NotOwner,
+		OffchainUnsignedTxError,
 	}
 
 	// Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -278,11 +294,33 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		#[pallet::weight(0)]
+		pub fn set_recipe_done_unsigned(
+			origin: OriginFor<T>,
+			_block_number: T::BlockNumber,
+			recipe_id: u64,
+		) -> DispatchResult {
+			// This ensures that the function can only be called via unsigned transaction.
+			ensure_none(origin)?;
+
+			ensure!(MapRecipe::<T>::contains_key(&recipe_id), Error::<T>::RecipeIdNotExist);
+
+			MapRecipe::<T>::try_mutate(recipe_id, |recipe| -> DispatchResult {
+				if let Some(recipe) = recipe {
+					recipe.done = true;
+					Self::deposit_event(Event::RecipeDone(recipe_id));
+				}
+				Ok(())
+			})?;
+
+			Ok(())
+		}
 	}
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn offchain_worker(_block_number: T::BlockNumber) {
+		fn offchain_worker(block_number: T::BlockNumber) {
 			log::info!("###### Hello from pallet-template-offchain-worker.");
 
 			// let parent_hash = <frame_system::Pallet<T>>::block_hash(block_number - 1u32.into());
@@ -312,6 +350,7 @@ pub mod pallet {
 				for (recipe_id, recipe) in MapRecipe::<T>::iter() {
 					if recipe.enable && !recipe.done {
 						if !map_recipe_task.contains_key(&recipe_id) {
+							log::info!("###### map_recipe_task.insert {:?}", &recipe_id);
 							map_recipe_task.insert(
 								recipe_id,
 								Recipe {
@@ -324,6 +363,7 @@ pub mod pallet {
 							);
 						}
 					} else {
+						log::info!("###### map_recipe_task.remove {:?}", &recipe_id);
 						map_recipe_task.remove(&recipe_id);
 					};
 				}
@@ -391,11 +431,91 @@ pub mod pallet {
 			};
 
 			//todo run action
-			for (_recipe_id, recipe) in map_running_action_recipe_task.iter() {
+			for (recipe_id, recipe) in map_running_action_recipe_task.iter() {
 				let action = MapAction::<T>::get(recipe.action_id);
 				match action {
 					Some(Action::MailWithToken(url, token, revicer, title, body)) => {
-						//todo(publish email task)
+						let url = match scale_info::prelude::string::String::from_utf8(url.to_vec())
+						{
+							Ok(v) => v,
+							Err(e) => {
+								log::info!("###### decode url error  {:?}", e);
+								continue
+							},
+						};
+
+						let token =
+							match scale_info::prelude::string::String::from_utf8(token.to_vec()) {
+								Ok(v) => v,
+								Err(e) => {
+									log::info!("###### decode token error  {:?}", e);
+									continue
+								},
+							};
+
+						let revicer = match scale_info::prelude::string::String::from_utf8(
+							revicer.to_vec(),
+						) {
+							Ok(v) => v,
+							Err(e) => {
+								log::info!("###### decode revicer error  {:?}", e);
+								continue
+							},
+						};
+
+						let title =
+							match scale_info::prelude::string::String::from_utf8(title.to_vec()) {
+								Ok(v) => v,
+								Err(e) => {
+									log::info!("###### decode title error  {:?}", e);
+									continue
+								},
+							};
+
+						let body =
+							match scale_info::prelude::string::String::from_utf8(body.to_vec()) {
+								Ok(v) => v,
+								Err(e) => {
+									log::info!("###### decode body error  {:?}", e);
+									continue
+								},
+							};
+
+						let options = scale_info::prelude::format!(
+							"email --url={} --token={} --revicer={} --title={} --body={}",
+							url,
+							token,
+							revicer,
+							title,
+							body,
+						);
+
+						log::info!("###### publish_task mail options  {:?}", options);
+
+						let _rt = match Self::publish_task("baidang201/email:latest", &options, 3) {
+							Ok(_i) => {
+								log::info!("###### publish_task mail ok");
+
+								match Self::offchain_unsigned_tx_recipe_done(
+									block_number,
+									*recipe_id,
+								) {
+									Ok(_) => {
+										log::info!("###### submit_unsigned_transaction ok");
+									},
+									Err(e) => {
+										log::info!(
+											"###### submit_unsigned_transaction error  {:?}",
+											e
+										);
+									},
+								};
+							},
+
+							Err(e) => {
+								log::info!("###### publish_task mail error  {:?}", e);
+							},
+						};
 					},
 
 					Some(Action::Oracle(token_name, source_url)) => {
@@ -418,24 +538,67 @@ pub mod pallet {
 							},
 						};
 						let options = scale_info::prelude::format!(
-							"oracle_price --delay=60 --token_name={} --source_url={}",
+							"oracle_price --token_name={} --source_url={}",
 							token_name,
 							source_url
 						);
 						//todo(publish oracle task)
-						let rt = match Self::publish_task("xbgxwh/oracle_price:latest", &options, 3)
-						{
-							Ok(i) => {
-								log::info!("###### publish_task ok");
-							},
+						let _rt =
+							match Self::publish_task("xbgxwh/oracle_price:latest", &options, 3) {
+								Ok(_i) => {
+									log::info!("###### publish_task ok");
 
-							Err(e) => {
-								log::info!("###### publish_task error  {:?}", e);
-							},
-						};
+									match Self::offchain_unsigned_tx_recipe_done(
+										block_number,
+										*recipe_id,
+									) {
+										Ok(_) => {
+											log::info!("###### submit_unsigned_transaction ok");
+										},
+										Err(e) => {
+											log::info!(
+												"###### submit_unsigned_transaction error  {:?}",
+												e
+											);
+										},
+									};
+								},
+
+								Err(e) => {
+									log::info!("###### publish_task error  {:?}", e);
+								},
+							};
 					},
 					_ => {},
 				}
+			}
+		}
+	}
+
+	#[pallet::validate_unsigned]
+	impl<T: Config> ValidateUnsigned for Pallet<T> {
+		type Call = Call<T>;
+
+		/// Validate unsigned call to this module.
+		///
+		/// By default unsigned transactions are disallowed, but implementing the validator
+		/// here we make sure that some particular calls (the ones produced by offchain worker)
+		/// are being whitelisted and marked as valid.
+		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
+			// Firstly let's check that we call the right function.
+			let valid_tx = |provide| {
+				ValidTransaction::with_tag_prefix("ocw-difttt")
+					.priority(T::UnsignedPriority::get())
+					.and_provides([&provide])
+					.longevity(3)
+					.propagate(true)
+					.build()
+			};
+
+			match call {
+				Call::set_recipe_done_unsigned { block_number: _, recipe_id: _ } =>
+					valid_tx(b"set_recipe_done_unsigned".to_vec()),
+				_ => InvalidTransaction::Call.into(),
 			}
 		}
 	}
@@ -565,6 +728,18 @@ pub mod pallet {
 			}
 
 			Ok(0)
+		}
+
+		fn offchain_unsigned_tx_recipe_done(
+			block_number: T::BlockNumber,
+			recipe_id: u64,
+		) -> Result<(), Error<T>> {
+			let call = Call::set_recipe_done_unsigned { block_number, recipe_id };
+
+			SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into()).map_err(|e| {
+				log::error!("Failed in offchain_unsigned_tx {:?}", e);
+				<Error<T>>::OffchainUnsignedTxError
+			})
 		}
 	}
 
