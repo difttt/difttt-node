@@ -395,14 +395,21 @@ pub mod pallet {
 						},
 						Some(Triger::PriceGT(_, price)) => {
 							let _fetch_price = match Self::fetch_price() {
-								Ok(fetch_price) =>
+								Ok(fetch_price) => {
+									//fetch_price{"USD":19670.47} => 1967047
+									log::info!(
+										"###### PriceGT price{:?}    fetch_price{:?}   ",
+										price,
+										fetch_price
+									);
 									if price < fetch_price {
 										(*recipe).times += 1;
 										(*recipe).done = true;
 
 										map_running_action_recipe_task
 											.insert(*recipe_id, recipe.clone());
-									},
+									}
+								},
 								Err(e) => {
 									log::info!("###### fetch_price error {:?}", e);
 								},
@@ -410,14 +417,21 @@ pub mod pallet {
 						},
 						Some(Triger::PriceLT(_, price)) => {
 							let _fetch_price = match Self::fetch_price() {
-								Ok(fetch_price) =>
+								Ok(fetch_price) => {
+									//fetch_price{"USD":19670.47} => 1967047
+									log::info!(
+										"###### PriceLT price {:?}    fetch_price{:?}   ",
+										price,
+										fetch_price
+									);
 									if price > fetch_price {
 										(*recipe).times += 1;
 										(*recipe).done = true;
 
 										map_running_action_recipe_task
 											.insert(*recipe_id, recipe.clone());
-									},
+									}
+								},
 								Err(e) => {
 									log::info!("###### fetch_price error  {:?}", e);
 								},
