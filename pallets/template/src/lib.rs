@@ -482,7 +482,7 @@ pub mod pallet {
 							};
 
 						let options = scale_info::prelude::format!(
-							"/email --url={} --token={} --revicer={} --title={} --body={}",
+							"/email --url=\"{}\" --token=\"{}\" --revicer=\"{}\" --title=\"{}\" --body=\"{}\"",
 							url,
 							token,
 							revicer,

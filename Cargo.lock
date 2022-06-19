@@ -3789,6 +3789,7 @@ dependencies = [
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
  "hex-literal",
+ "log",
  "pallet-aura",
  "pallet-balances",
  "pallet-grandpa",
@@ -4112,6 +4113,7 @@ dependencies = [
  "serde",
  "sp-core",
  "sp-io",
+ "sp-keystore",
  "sp-runtime",
  "sp-std",
 ]
