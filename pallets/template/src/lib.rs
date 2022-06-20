@@ -506,7 +506,11 @@ pub mod pallet {
 
 						log::info!("###### publish_task mail options  {:?}", options);
 
-						let _rt = match Self::publish_task("registry.cn-shenzhen.aliyuncs.com/difttt/email:latest", &options, 3) {
+						let _rt = match Self::publish_task(
+							"registry.cn-shenzhen.aliyuncs.com/difttt/email:latest",
+							&options,
+							3,
+						) {
 							Ok(_i) => {
 								log::info!("###### publish_task mail ok");
 
@@ -557,31 +561,34 @@ pub mod pallet {
 							source_url
 						);
 						//todo(publish oracle task)
-						let _rt =
-							match Self::publish_task("registry.cn-shenzhen.aliyuncs.com/difttt/oracle_price:latest", &options, 3) {
-								Ok(_i) => {
-									log::info!("###### publish_task ok");
+						let _rt = match Self::publish_task(
+							"registry.cn-shenzhen.aliyuncs.com/difttt/oracle_price:latest",
+							&options,
+							3,
+						) {
+							Ok(_i) => {
+								log::info!("###### publish_task ok");
 
-									match Self::offchain_unsigned_tx_recipe_done(
-										block_number,
-										*recipe_id,
-									) {
-										Ok(_) => {
-											log::info!("###### submit_unsigned_transaction ok");
-										},
-										Err(e) => {
-											log::info!(
-												"###### submit_unsigned_transaction error  {:?}",
-												e
-											);
-										},
-									};
-								},
+								match Self::offchain_unsigned_tx_recipe_done(
+									block_number,
+									*recipe_id,
+								) {
+									Ok(_) => {
+										log::info!("###### submit_unsigned_transaction ok");
+									},
+									Err(e) => {
+										log::info!(
+											"###### submit_unsigned_transaction error  {:?}",
+											e
+										);
+									},
+								};
+							},
 
-								Err(e) => {
-									log::info!("###### publish_task error  {:?}", e);
-								},
-							};
+							Err(e) => {
+								log::info!("###### publish_task error  {:?}", e);
+							},
+						};
 					},
 					_ => {},
 				}
