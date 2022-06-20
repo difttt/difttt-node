@@ -35,7 +35,7 @@ pub enum Triger {
 #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 //#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 //#[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
-pub enum Action {
+pub enum Action<AccountId> {
 	MailWithToken(
 		BoundedVec<u8, ConstU32<128>>,
 		BoundedVec<u8, ConstU32<256>>,
@@ -47,6 +47,7 @@ pub enum Action {
 	 * by asymmetric encryption,
 	 * revicer, title, body */
 	Oracle(BoundedVec<u8, ConstU32<32>>, BoundedVec<u8, ConstU32<128>>), // TokenName, SourceURL
+	BuyToken(BoundedVec<u8, ConstU32<32>>, AccountId, u64,) // TokenName, AccountId, Amount
 }
 
 #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
@@ -133,7 +134,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn map_action)]
-	pub(super) type MapAction<T: Config> = StorageMap<_, Twox64Concat, u64, Action>;
+	pub(super) type MapAction<T: Config> = StorageMap<_, Twox64Concat, u64, Action<T::AccountId>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn map_recipe)]
@@ -159,12 +160,13 @@ pub mod pallet {
 		SomethingStored(u32, T::AccountId),
 
 		TrigerCreated(u64, Triger),
-		ActionCreated(u64, Action),
+		ActionCreated(u64, Action<T::AccountId>),
 		RecipeCreated(u64, Recipe),
 		RecipeRemoved(u64),
 		RecipeTurnOned(u64),
 		RecipeTurnOffed(u64),
 		RecipeDone(u64),
+		TokenBought(Vec<u8>, T::AccountId, u64),
 	}
 
 	// Errors inform users that something went wrong.
@@ -204,7 +206,7 @@ pub mod pallet {
 
 		/// create_action
 		#[pallet::weight(0)]
-		pub fn create_action(origin: OriginFor<T>, action: Action) -> DispatchResult {
+		pub fn create_action(origin: OriginFor<T>, action: Action<T::AccountId>) -> DispatchResult {
 			let user = ensure_signed(origin)?;
 			let action_id = NextActionId::<T>::get().unwrap_or_default();
 
@@ -313,6 +315,20 @@ pub mod pallet {
 				}
 				Ok(())
 			})?;
+
+			Ok(())
+		}
+
+		#[pallet::weight(0)]
+		pub fn buy_token_unsigned(
+			origin: OriginFor<T>,
+			_block_number: T::BlockNumber,
+			buyer: T::AccountId,
+			token_name: Vec<u8>,
+			number: u64,
+		) -> DispatchResult {
+			// This ensures that the function can only be called via unsigned transaction.
+			ensure_none(origin)?;			
 
 			Ok(())
 		}
@@ -590,6 +606,25 @@ pub mod pallet {
 							},
 						};
 					},
+					Some(Action::BuyToken(token_name, account_id, amount))=>{
+						
+
+						match Self::offchain_unsigned_tx_recipe_done(
+							block_number,
+							*recipe_id,
+						) {
+							Ok(_) => {
+								log::info!("###### submit_unsigned_transaction ok");
+							},
+							Err(e) => {
+								log::info!(
+									"###### submit_unsigned_transaction error  {:?}",
+									e
+								);
+							},
+						};
+
+					}
 					_ => {},
 				}
 			}
