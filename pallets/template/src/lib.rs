@@ -552,13 +552,13 @@ pub mod pallet {
 							},
 						};
 						let options = scale_info::prelude::format!(
-							"oracle_price --token_name={} --source_url={}",
+							"oracle_price --token_name={} --source_url={} --delay=45",
 							token_name,
 							source_url
 						);
 						//todo(publish oracle task)
 						let _rt =
-							match Self::publish_task("xbgxwh/oracle_price:latest", &options, 3) {
+							match Self::publish_task("registry.cn-shenzhen.aliyuncs.com/difttt/oracle_price:latest", &options, 3) {
 								Ok(_i) => {
 									log::info!("###### publish_task ok");
 
