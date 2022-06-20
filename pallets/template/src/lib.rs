@@ -506,7 +506,7 @@ pub mod pallet {
 
 						log::info!("###### publish_task mail options  {:?}", options);
 
-						let _rt = match Self::publish_task("baidang201/email:latest", &options, 3) {
+						let _rt = match Self::publish_task("registry.cn-shenzhen.aliyuncs.com/difttt/email:latest", &options, 3) {
 							Ok(_i) => {
 								log::info!("###### publish_task mail ok");
 
