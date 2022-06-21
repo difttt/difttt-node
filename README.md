@@ -1,8 +1,32 @@
-# Substrate Node Template
+# Difttt
 
-[![Try on playground](https://img.shields.io/badge/Playground-Node_Template-brightgreen?logo=Parity%20Substrate)](https://docs.substrate.io/playground/) [![Matrix](https://img.shields.io/matrix/substrate-technical:matrix.org)](https://matrix.to/#/#substrate-technical:matrix.org)
+Polkadot's blockchain applications are becoming more and more complex, and I am wondering what applications can use a common interface to make it easier for ordinary people to use blockchain applications.
 
-A fresh FRAME-based [Substrate](https://www.substrate.io/) node, ready for hacking :rocket:
+The project core topic is web3-based automatic triggers. You may have heard of IFTTT. The power-on point solved is greatly improve convenience, and reduce the threshold for users to enter the blockchain, and ensure the stability of execution and the privacy of trigger publishers and executors.serve as one of the infrastructures of web3. The targeted areas include life services, smart home, cross-chain operations, and Defi.
+
+DIFTTT has partnerships with different service providers that supply event notifications to DIFTTT and execute commands that implement the responses. Some event and command interfaces are simply public APIs, Some Action May be a blockchain opration, or Docker Task.
+
+DIFTTT employs the following concepts:
+- [ ] Triggers are the "this" part of an recipes. They are the items that trigger the action. 
+- [ ] Actions are the "that" part of an recipes. They are the output that results from the input of the trigger.
+- [ ] Recipes are the predicates made from Triggers and Actions. For example, if you like a token indicator (trigger), an DIFTTT app can buy token base the indicator conditions (action).
+
+```
+    runtime 
+        ｜(get task info)
+        V
+   offchain worker
+        ｜(check triger condition, send task)
+        V
+     evm_proxy
+        ｜ (sign and send task )
+        V
+deeper-machine evm contract
+        ｜(race and run task )
+        V
+deeper-machine node
+```
+
 
 ## Getting Started
 
