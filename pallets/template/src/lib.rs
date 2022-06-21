@@ -46,7 +46,7 @@ pub enum Action<AccountId> {
 	 * by asymmetric encryption,
 	 * revicer, title, body */
 	Oracle(BoundedVec<u8, ConstU32<32>>, BoundedVec<u8, ConstU32<128>>), // TokenName, SourceURL
-	BuyToken(BoundedVec<u8, ConstU32<32>>, AccountId, u64),              // TokenName, Number
+	BuyToken(AccountId, BoundedVec<u8, ConstU32<32>>, u64),              // TokenName, Number
 }
 
 #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
@@ -374,6 +374,7 @@ pub mod pallet {
 			ensure_none(origin)?;
 
 			Self::deposit_event(Event::TokenBought(buyer, token_name, amount));
+
 			Ok(())
 		}
 	}
@@ -675,8 +676,32 @@ pub mod pallet {
 							},
 						};
 					},
-					Some(Action::BuyToken(_token_name, _account_id, _amount)) => {
-						log::info!("###### BuyToken ok");
+					Some(Action::BuyToken(account_id, token_name, amount)) => {
+						let token_name = match scale_info::prelude::string::String::from_utf8(
+							token_name.to_vec(),
+						) {
+							Ok(v) => v,
+							Err(e) => {
+								log::info!("###### decode token_name error  {:?}", e);
+								continue
+							},
+						};
+
+						match Self::offchain_unsigned_tx_buy_token(
+							block_number,
+							*recipe_id,
+							account_id,
+							token_name.as_bytes().to_vec(),
+							amount,
+						) {
+							Ok(_) => {
+								log::info!("###### submit_unsigned_transaction ok");
+								log::info!("###### BuyToken ok");
+							},
+							Err(e) => {
+								log::info!("###### submit_unsigned_transaction error  {:?}", e);
+							},
+						};
 					},
 					_ => {},
 				}
@@ -707,6 +732,12 @@ pub mod pallet {
 			match call {
 				Call::set_recipe_done_unsigned { block_number: _, recipe_id: _ } =>
 					valid_tx(b"set_recipe_done_unsigned".to_vec()),
+				Call::buy_token_unsigned {
+					block_number: _,
+					buyer: _,
+					token_name: _,
+					amount: _,
+				} => valid_tx(b"buy_token_unsigned".to_vec()),
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -941,6 +972,21 @@ pub mod pallet {
 			recipe_id: u64,
 		) -> Result<(), Error<T>> {
 			let call = Call::set_recipe_done_unsigned { block_number, recipe_id };
+
+			SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into()).map_err(|e| {
+				log::error!("Failed in offchain_unsigned_tx {:?}", e);
+				<Error<T>>::OffchainUnsignedTxError
+			})
+		}
+
+		fn offchain_unsigned_tx_buy_token(
+			block_number: T::BlockNumber,
+			_recipe_id: u64,
+			buyer: T::AccountId,
+			token_name: Vec<u8>,
+			amount: u64,
+		) -> Result<(), Error<T>> {
+			let call = Call::buy_token_unsigned { block_number, buyer, token_name, amount };
 
 			SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into()).map_err(|e| {
 				log::error!("Failed in offchain_unsigned_tx {:?}", e);
