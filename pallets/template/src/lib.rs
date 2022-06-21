@@ -10,9 +10,6 @@ use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 use sp_std::cmp::{Eq, PartialEq};
 
-#[cfg(feature = "std")]
-use serde::{Deserialize, Serialize};
-
 #[cfg(test)]
 mod mock;
 
@@ -23,13 +20,15 @@ mod tests;
 mod benchmarking;
 
 #[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
+// #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+// #[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
 pub enum Triger {
 	Timer(u64, u64),    //insert_time,  timer_seconds
 	Schedule(u64, u64), //insert_time,  timestamp
 	PriceGT(u64, u64),  //insert_time,  price   //todo,price use float
 	PriceLT(u64, u64),  //insert_time,  price   //todo,price use float
+	Arh999LT(u64, u64, u64), /* insert_time,  indicator, Minimum buy interval   //todo,
+	                     * indicator use float */
 }
 
 #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
@@ -47,7 +46,7 @@ pub enum Action<AccountId> {
 	 * by asymmetric encryption,
 	 * revicer, title, body */
 	Oracle(BoundedVec<u8, ConstU32<32>>, BoundedVec<u8, ConstU32<128>>), // TokenName, SourceURL
-	BuyToken(BoundedVec<u8, ConstU32<32>>, AccountId, u64,) // TokenName, AccountId, Amount
+	BuyToken(BoundedVec<u8, ConstU32<32>>, AccountId, u64),              // TokenName, Number
 }
 
 #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
@@ -59,6 +58,7 @@ pub struct Recipe {
 	enable: bool,
 	times: u64,
 	done: bool,
+	last_triger_timestamp: u64,
 }
 
 #[frame_support::pallet]
@@ -72,6 +72,7 @@ pub mod pallet {
 		pallet_prelude::*,
 	};
 	use lite_json::json::JsonValue;
+	use serde::{Deserialize, Deserializer};
 	use sp_runtime::{
 		offchain::{
 			http,
@@ -82,11 +83,46 @@ pub mod pallet {
 		traits::{BlockNumberProvider, One},
 	};
 
-	use sp_std::{collections::btree_map::BTreeMap, prelude::*};
+	use sp_std::{collections::btree_map::BTreeMap, prelude::*, str};
 
 	const FETCH_TIMEOUT_PERIOD: u64 = 3000; // in milli-seconds
 	const LOCK_TIMEOUT_EXPIRATION: u64 = FETCH_TIMEOUT_PERIOD + 1000; // in milli-seconds
 	const LOCK_BLOCK_EXPIRATION: u32 = 3; // in block number
+	const ARH999_DECIMAL_PRECISION: usize = 2;
+
+	/*
+	{
+		"data": [
+			[1655725195.0, 0.3143, 20827.92, 35400.82, 38982.87],
+			[1655725195.0, 0.3143, 20827.92, 35400.82, 38982.87]
+		],
+		"code": 200,
+		"msg": "success"
+	}
+
+	for test
+	{
+		"data": "0.31",
+		"code": 200,
+		"msg": "success"
+	}
+	*/
+	#[derive(Deserialize, Encode, Decode, Default, RuntimeDebug)]
+	struct ArhResponseData {
+		#[serde(deserialize_with = "de_string_to_bytes")]
+		data: Vec<u8>,
+		code: u64,
+		#[serde(deserialize_with = "de_string_to_bytes")]
+		msg: Vec<u8>,
+	}
+
+	pub fn de_string_to_bytes<'de, D>(de: D) -> Result<Vec<u8>, D::Error>
+	where
+		D: Deserializer<'de>,
+	{
+		let s: &str = Deserialize::deserialize(de)?;
+		Ok(s.as_bytes().to_vec())
+	}
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
@@ -166,7 +202,7 @@ pub mod pallet {
 		RecipeTurnOned(u64),
 		RecipeTurnOffed(u64),
 		RecipeDone(u64),
-		TokenBought(Vec<u8>, T::AccountId, u64),
+		TokenBought(T::AccountId, Vec<u8>, u64),
 	}
 
 	// Errors inform users that something went wrong.
@@ -232,7 +268,14 @@ pub mod pallet {
 			ensure!(MapTriger::<T>::contains_key(&triger_id), Error::<T>::TrigerIdNotExist);
 			ensure!(MapAction::<T>::contains_key(&action_id), Error::<T>::ActionIdNotExist);
 
-			let recipe = Recipe { triger_id, action_id, enable: true, times: 0, done: false };
+			let recipe = Recipe {
+				triger_id,
+				action_id,
+				enable: true,
+				times: 0,
+				done: false,
+				last_triger_timestamp: 0,
+			};
 
 			MapRecipe::<T>::insert(recipe_id, recipe.clone());
 			RecipeOwner::<T>::insert(user, recipe_id, ());
@@ -325,11 +368,12 @@ pub mod pallet {
 			_block_number: T::BlockNumber,
 			buyer: T::AccountId,
 			token_name: Vec<u8>,
-			number: u64,
+			amount: u64,
 		) -> DispatchResult {
 			// This ensures that the function can only be called via unsigned transaction.
-			ensure_none(origin)?;			
+			ensure_none(origin)?;
 
+			Self::deposit_event(Event::TokenBought(buyer, token_name, amount));
 			Ok(())
 		}
 	}
@@ -375,6 +419,7 @@ pub mod pallet {
 									enable: true,
 									times: 0,
 									done: false,
+									last_triger_timestamp: 0,
 								},
 							);
 						}
@@ -450,6 +495,30 @@ pub mod pallet {
 								},
 								Err(e) => {
 									log::info!("###### fetch_price error  {:?}", e);
+								},
+							};
+						},
+						Some(Triger::Arh999LT(_, indicator, min_interval)) => {
+							let _fetch_arh999 = match Self::fetch_arh999() {
+								Ok(fetch_arh999) => {
+									//fetch_price{"USD":19670.47} => 1967047
+									log::info!(
+										"###### Arh999LT indicator {:?}   fetch_arh999{:?}  min_interval {:?}  last_triger_timestamp  {:?} ",
+										indicator,
+										fetch_arh999,
+										min_interval,
+										recipe.last_triger_timestamp,
+									);
+									if indicator > fetch_arh999 {
+										(*recipe).times += 1;
+										//(*recipe).done = true;
+
+										map_running_action_recipe_task
+											.insert(*recipe_id, recipe.clone());
+									}
+								},
+								Err(e) => {
+									log::info!("###### fetch_arh999 error  {:?}", e);
 								},
 							};
 						},
@@ -606,25 +675,9 @@ pub mod pallet {
 							},
 						};
 					},
-					Some(Action::BuyToken(token_name, account_id, amount))=>{
-						
-
-						match Self::offchain_unsigned_tx_recipe_done(
-							block_number,
-							*recipe_id,
-						) {
-							Ok(_) => {
-								log::info!("###### submit_unsigned_transaction ok");
-							},
-							Err(e) => {
-								log::info!(
-									"###### submit_unsigned_transaction error  {:?}",
-									e
-								);
-							},
-						};
-
-					}
+					Some(Action::BuyToken(_token_name, _account_id, _amount)) => {
+						log::info!("###### BuyToken ok");
+					},
 					_ => {},
 				}
 			}
@@ -736,6 +789,103 @@ pub mod pallet {
 
 			let exp = price.fraction_length.checked_sub(2).unwrap_or(0);
 			Some(price.integer as u64 * 100 + (price.fraction / 10_u64.pow(exp)) as u64)
+		}
+
+		/// Fetch current arh999 and return the result in cents.
+		/// //fetch_arh999
+		/// {"data":[[1655725195.0,0.3143,20827.92,35400.82,38982.87]],"code":200,"msg":"success"}
+		/// => 31
+		fn fetch_arh999() -> Result<u64, http::Error> {
+			let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(2_000));
+			// Initiate an external HTTP GET request.
+			// This is using high-level wrappers from `sp_runtime`, for the low-level calls that
+			// you can find in `sp_io`. The API is trying to be similar to `reqwest`, but
+			// since we are running in a custom WASM execution environment we can't simply
+			// import the library here.
+			let request = http::Request::get("http://127.0.0.1:8000/arh999");
+
+			// We set the deadline for sending of the request, note that awaiting response can
+			// have a separate deadline. Next we send the request, before that it's also possible
+			// to alter request headers or stream body content in case of non-GET requests.
+			let pending = request.deadline(deadline).send().map_err(|_| http::Error::IoError)?;
+
+			// The request is already being processed by the host, we are free to do anything
+			// else in the worker (we can send multiple concurrent requests too).
+			// At some point however we probably want to check the response though,
+			// so we can block current thread and wait for it to finish.
+			// Note that since the request is being driven by the host, we don't have to wait
+			// for the request to have it complete, we will just not read the response.
+			let response =
+				pending.try_wait(deadline).map_err(|_| http::Error::DeadlineReached)??;
+			// Let's check the status code before we proceed to reading the response.
+			if response.code != 200 {
+				log::warn!("Unexpected status code: {}", response.code);
+				return Err(http::Error::Unknown)
+			}
+
+			// Next we want to fully read the response body and collect it to a vector of bytes.
+			// Note that the return object allows you to read the body in chunks as well
+			// with a way to control the deadline.
+			let body = response.body().collect::<Vec<u8>>();
+
+			// Create a str slice from the body.
+			let body_str = sp_std::str::from_utf8(&body).map_err(|_| {
+				log::warn!("No UTF8 body");
+				http::Error::Unknown
+			})?;
+
+			log::info!("fetch_arh999: {}", body_str);
+
+			let arh_response_data: ArhResponseData = match serde_json::from_str(&body_str) {
+				Ok(v) => v,
+				Err(e) => {
+					log::error!("fetch_arh999 ParseError error 1: {:?}", e);
+					return Err(http::Error::Unknown)
+				},
+			};
+
+			log::info!("Got last arh999 arh_response_data: {:?}", arh_response_data);
+
+			let data = match scale_info::prelude::string::String::from_utf8(arh_response_data.data)
+			{
+				Ok(v) => v,
+				Err(e) => {
+					log::info!("###### decode source_url error  {:?}", e);
+					return Err(http::Error::Unknown)
+				},
+			};
+
+			let data = scale_info::prelude::format!("{}", data);
+
+			let result: Vec<&str> = data.split('.').collect();
+
+			let arh999_u64: u64 = match result[0].parse::<u64>() {
+				Ok(v) => v,
+				Err(e) => {
+					log::info!("###### decode parse error1  {:?}", e);
+					return Err(http::Error::Unknown)
+				},
+			};
+			log::info!("### arh999_u64: {:?}", &arh999_u64);
+
+			let new_substring = result[1].get(0..ARH999_DECIMAL_PRECISION).unwrap();
+
+			log::info!("### new_substring: {:?}", &new_substring);
+
+			let arh999_sub: u64 = match new_substring.parse::<u64>() {
+				Ok(v) => v,
+				Err(e) => {
+					log::info!("###### decode parse error2  {:?}", e);
+					return Err(http::Error::Unknown)
+				},
+			};
+			log::info!("### format_data: {:?}", &arh999_sub);
+
+			let arh999 = arh999_u64 as u64 * 100 + arh999_sub as u64;
+
+			log::info!("Got arh999: {}", arh999);
+
+			Ok(arh999)
 		}
 
 		fn publish_task(
