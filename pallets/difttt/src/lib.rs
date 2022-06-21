@@ -382,7 +382,7 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn offchain_worker(block_number: T::BlockNumber) {
-			log::info!("###### Hello from pallet-template-offchain-worker.");
+			log::info!("###### Hello from pallet-difttt-offchain-worker.");
 
 			// let parent_hash = <frame_system::Pallet<T>>::block_hash(block_number - 1u32.into());
 			// log::info!("###### Current block: {:?} (parent hash: {:?})", block_number,
@@ -391,7 +391,7 @@ pub mod pallet {
 			let timestamp_now = T::TimeProvider::now();
 			log::info!("###### Current time: {:?} ", timestamp_now.as_secs());
 
-			let store_hashmap_recipe = StorageValueRef::persistent(b"template_ocw::recipe_task");
+			let store_hashmap_recipe = StorageValueRef::persistent(b"difttt_ocw::recipe_task");
 
 			let mut map_recipe_task: BTreeMap<u64, Recipe>;
 			if let Ok(Some(info)) = store_hashmap_recipe.get::<BTreeMap<u64, Recipe>>() {

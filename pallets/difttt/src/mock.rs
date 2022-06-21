@@ -1,4 +1,4 @@
-use crate as pallet_template;
+use crate as pallet_difttt;
 use frame_support::{
 	parameter_types,
 	traits::{ConstU16, ConstU64},
@@ -23,7 +23,7 @@ frame_support::construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-		TemplateModule: pallet_template::{Pallet, Call, Storage, Event<T>, ValidateUnsigned},
+		DiftttModule: pallet_difttt::{Pallet, Call, Storage, Event<T>, ValidateUnsigned},
 	}
 );
 
@@ -65,7 +65,7 @@ parameter_types! {
 	pub const UnsignedPriority: u64 = 1;
 }
 
-impl pallet_template::Config for Test {
+impl pallet_difttt::Config for Test {
 	type Event = Event;
 	type TimeProvider = pallet_timestamp::Pallet<Test>;
 	type Call = Call;
