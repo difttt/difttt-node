@@ -30,7 +30,7 @@ pub enum Triger {
 	Schedule(u64, u64), //insert_time,  timestamp
 	PriceGT(u64, u64),  //insert_time,  price   //todo,price use float
 	PriceLT(u64, u64),  //insert_time,  price   //todo,price use float
-	Arh999LT(u64, u64, u64), /* insert_time,  indicator, Minimum seconds buy interval   //todo,
+	Arh999LT(u64, u64, u64), /* insert_time,  indicator, seconds buy interval   //todo,
 	                     * indicator use float */
 }
 
@@ -49,7 +49,7 @@ pub enum Action<AccountId> {
 	 * by asymmetric encryption,
 	 * revicer, title, body */
 	Oracle(BoundedVec<u8, ConstU32<32>>, BoundedVec<u8, ConstU32<128>>), // TokenName, SourceURL
-	BuyToken(AccountId, BoundedVec<u8, ConstU32<32>>, u64),              // TokenName, Amount
+	BuyToken(AccountId, BoundedVec<u8, ConstU32<32>>, u64, BoundedVec<u8, ConstU32<128>>), /* Address, TokenName, Amount,  info-mail-recevicer */
 }
 
 #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
@@ -683,7 +683,7 @@ pub mod pallet {
 							},
 						};
 					},
-					Some(Action::BuyToken(account_id, token_name, amount)) => {
+					Some(Action::BuyToken(account_id, token_name, amount, _reciver)) => {
 						let token_name = match scale_info::prelude::string::String::from_utf8(
 							token_name.to_vec(),
 						) {
