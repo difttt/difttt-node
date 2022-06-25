@@ -49,7 +49,13 @@ pub enum Action<AccountId> {
 	 * by asymmetric encryption,
 	 * revicer, title, body */
 	Oracle(BoundedVec<u8, ConstU32<32>>, BoundedVec<u8, ConstU32<128>>), // TokenName, SourceURL
-	BuyToken(AccountId, BoundedVec<u8, ConstU32<32>>, u64, BoundedVec<u8, ConstU32<128>>), /* Address, TokenName, Amount,  info-mail-recevicer */
+	BuyToken(
+		AccountId,
+		BoundedVec<u8, ConstU32<32>>,
+		u64,
+		BoundedVec<u8, ConstU32<32>>,
+		BoundedVec<u8, ConstU32<128>>,
+	), /* Address, SellTokenName, SellAmount, BuyTokenName, info-mail-recevicer */
 }
 
 #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
