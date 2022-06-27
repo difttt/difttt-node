@@ -689,7 +689,7 @@ pub mod pallet {
 							},
 						};
 					},
-					Some(Action::BuyToken(account_id, token_name, amount, _reciver)) => {
+					Some(Action::BuyToken(account_id, token_name, amount, buy_token_name, _reciver)) => {
 						let token_name = match scale_info::prelude::string::String::from_utf8(
 							token_name.to_vec(),
 						) {
