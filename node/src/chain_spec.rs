@@ -1,6 +1,6 @@
 use node_template_runtime::{
-	AccountId, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig, Signature, SudoConfig,
-	SystemConfig, WASM_BINARY,
+	AccountId, AuraConfig, BalancesConfig, CurrencyId, GenesisConfig, GrandpaConfig, Signature,
+	SudoConfig, SystemConfig, TokensConfig, WASM_BINARY,
 };
 use sc_service::ChainType;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
@@ -149,9 +149,16 @@ fn testnet_genesis(
 		},
 		sudo: SudoConfig {
 			// Assign network admin rights.
-			key: Some(root_key),
+			key: Some(root_key.clone()),
 		},
 		assets: Default::default(),
 		transaction_payment: Default::default(),
+		tokens: TokensConfig {
+			balances: vec![
+				(root_key.clone(), CurrencyId::DOT, 10u128.pow(16)),
+				(root_key.clone(), CurrencyId::USDT, 10u128.pow(16)),
+				(root_key.clone(), CurrencyId::BTC, 10u128.pow(16)),
+			],
+		},
 	}
 }

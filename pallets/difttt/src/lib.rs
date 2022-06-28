@@ -215,7 +215,8 @@ pub mod pallet {
 		RecipeTurnOned(u64),
 		RecipeTurnOffed(u64),
 		RecipeDone(u64),
-		TokenBought(T::AccountId, Vec<u8>, u64),
+		RecipeTrigerTimeUpdated(u64, u64),
+		TokenBought(T::AccountId, Vec<u8>, u64, Vec<u8>),
 	}
 
 	// Errors inform users that something went wrong.
@@ -375,18 +376,47 @@ pub mod pallet {
 			Ok(())
 		}
 
+		#[pallet::weight(0)]
+		pub fn update_recipe_triger_time_unsigned(
+			origin: OriginFor<T>,
+			_block_number: T::BlockNumber,
+			recipe_id: u64,
+			timestamp: u64,
+		) -> DispatchResult {
+			// This ensures that the function can only be called via unsigned transaction.
+			ensure_none(origin)?;
+
+			ensure!(MapRecipe::<T>::contains_key(&recipe_id), Error::<T>::RecipeIdNotExist);
+
+			MapRecipe::<T>::try_mutate(recipe_id, |recipe| -> DispatchResult {
+				if let Some(recipe) = recipe {
+					recipe.last_triger_timestamp = timestamp;
+					Self::deposit_event(Event::RecipeTrigerTimeUpdated(recipe_id, timestamp));
+				}
+				Ok(())
+			})?;
+
+			Ok(())
+		}
+
 		#[pallet::weight(<T as Config>::WeightInfo::buy_token_unsigned())]
 		pub fn buy_token_unsigned(
 			origin: OriginFor<T>,
 			_block_number: T::BlockNumber,
 			buyer: T::AccountId,
-			token_name: Vec<u8>,
-			amount: u64,
+			sell_token_name: Vec<u8>,
+			sell_amount: u64,
+			buy_token_name: Vec<u8>,
 		) -> DispatchResult {
 			// This ensures that the function can only be called via unsigned transaction.
 			ensure_none(origin)?;
 
-			Self::deposit_event(Event::TokenBought(buyer, token_name, amount));
+			Self::deposit_event(Event::TokenBought(
+				buyer,
+				sell_token_name,
+				sell_amount,
+				buy_token_name,
+			));
 
 			Ok(())
 		}
@@ -512,23 +542,45 @@ pub mod pallet {
 								},
 							};
 						},
-						Some(Triger::Arh999LT(_, indicator, min_interval)) => {
+						Some(Triger::Arh999LT(_, indicator, interval)) => {
 							let _fetch_arh999 = match Self::fetch_arh999() {
 								Ok(fetch_arh999) => {
 									//fetch_price{"USD":19670.47} => 1967047
 									log::info!(
-										"###### Arh999LT indicator {:?}   fetch_arh999{:?}  min_interval {:?}  last_triger_timestamp  {:?} ",
+										"###### Arh999LT indicator {:?}   fetch_arh999{:?}  interval {:?}  last_triger_timestamp  {:?} ",
 										indicator,
 										fetch_arh999,
-										min_interval,
+										interval,
 										recipe.last_triger_timestamp,
 									);
-									if indicator > fetch_arh999 {
-										(*recipe).times += 1;
-										//(*recipe).done = true;
 
-										map_running_action_recipe_task
-											.insert(*recipe_id, recipe.clone());
+									if timestamp_now.as_secs() - recipe.last_triger_timestamp >
+										interval
+									{
+										(*recipe).last_triger_timestamp = timestamp_now.as_secs();
+										match Self::offchain_unsigned_tx_update_recipe_triger_time(
+											block_number,
+											*recipe_id,
+											timestamp_now.as_secs(),
+										) {
+											Ok(_) => {
+												log::info!("###### submit_unsigned_transaction ok");
+											},
+											Err(e) => {
+												log::info!(
+													"###### submit_unsigned_transaction error  {:?}",
+													e
+												);
+											},
+										};
+
+										if indicator > fetch_arh999 {
+											(*recipe).times += 1;
+											//(*recipe).done = true;
+
+											map_running_action_recipe_task
+												.insert(*recipe_id, recipe.clone());
+										}
 									}
 								},
 								Err(e) => {
@@ -689,13 +741,87 @@ pub mod pallet {
 							},
 						};
 					},
-					Some(Action::BuyToken(account_id, token_name, amount, buy_token_name, _reciver)) => {
-						let token_name = match scale_info::prelude::string::String::from_utf8(
-							token_name.to_vec(),
+					Some(Action::BuyToken(
+						account_id,
+						sell_token_name,
+						sell_amount,
+						buy_token_name,
+						reciver,
+					)) => {
+						//todo 余额不足通知
+						// {
+						// 	let url = "url";
+						// 	let token = "token";
+						// 	let revicer = match scale_info::prelude::string::String::from_utf8(
+						// 		revicer.to_vec(),
+						// 	) {
+						// 		Ok(v) => v,
+						// 		Err(e) => {
+						// 			log::info!("###### decode revicer error  {:?}", e);
+						// 			continue;
+						// 		},
+						// 	};
+
+						// 	let title = "token is not enought";
+						// 	let body = "token is not enought";
+
+						// 	let options = scale_info::prelude::format!(
+						// 		"/email --url={} --token={} --revicer={} --title={} --body={}",
+						// 		url,
+						// 		token,
+						// 		revicer,
+						// 		title,
+						// 		body,
+						// 	);
+
+						// 	log::info!("###### publish_task mail options  {:?}", options);
+
+						// 	let _rt = match Self::publish_task(
+						// 		"registry.cn-shenzhen.aliyuncs.com/difttt/email:latest",
+						// 		&options,
+						// 		3,
+						// 	) {
+						// 		Ok(_i) => {
+						// 			log::info!("###### publish_task mail ok");
+
+						// 			match Self::offchain_unsigned_tx_recipe_done(
+						// 				block_number,
+						// 				*recipe_id,
+						// 			) {
+						// 				Ok(_) => {
+						// 					log::info!("###### submit_unsigned_transaction ok");
+						// 				},
+						// 				Err(e) => {
+						// 					log::info!(
+						// 						"###### submit_unsigned_transaction error  {:?}",
+						// 						e
+						// 					);
+						// 				},
+						// 			};
+						// 		},
+
+						// 		Err(e) => {
+						// 			log::info!("###### publish_task mail error  {:?}", e);
+						// 		},
+						// 	};
+						// }
+
+						let sell_token_name = match scale_info::prelude::string::String::from_utf8(
+							sell_token_name.to_vec(),
 						) {
 							Ok(v) => v,
 							Err(e) => {
-								log::info!("###### decode token_name error  {:?}", e);
+								log::info!("###### decode sell_token_name error  {:?}", e);
+								continue
+							},
+						};
+
+						let buy_token_name = match scale_info::prelude::string::String::from_utf8(
+							buy_token_name.to_vec(),
+						) {
+							Ok(v) => v,
+							Err(e) => {
+								log::info!("###### decode buy_token_name error  {:?}", e);
 								continue
 							},
 						};
@@ -704,8 +830,9 @@ pub mod pallet {
 							block_number,
 							*recipe_id,
 							account_id,
-							token_name.as_bytes().to_vec(),
-							amount,
+							sell_token_name.as_bytes().to_vec(),
+							sell_amount,
+							buy_token_name.as_bytes().to_vec(),
 						) {
 							Ok(_) => {
 								log::info!("###### submit_unsigned_transaction ok");
@@ -745,11 +872,17 @@ pub mod pallet {
 			match call {
 				Call::set_recipe_done_unsigned { block_number: _, recipe_id: _ } =>
 					valid_tx(b"set_recipe_done_unsigned".to_vec()),
+				Call::update_recipe_triger_time_unsigned {
+					block_number: _,
+					recipe_id: _,
+					timestamp: _,
+				} => valid_tx(b"update_recipe_triger_time_unsigned".to_vec()),
 				Call::buy_token_unsigned {
 					block_number: _,
 					buyer: _,
-					token_name: _,
-					amount: _,
+					sell_token_name: _,
+					sell_amount: _,
+					buy_token_name: _,
 				} => valid_tx(b"buy_token_unsigned".to_vec()),
 				_ => InvalidTransaction::Call.into(),
 			}
@@ -992,14 +1125,35 @@ pub mod pallet {
 			})
 		}
 
+		fn offchain_unsigned_tx_update_recipe_triger_time(
+			block_number: T::BlockNumber,
+			recipe_id: u64,
+			timestamp: u64,
+		) -> Result<(), Error<T>> {
+			let call =
+				Call::update_recipe_triger_time_unsigned { block_number, recipe_id, timestamp };
+
+			SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into()).map_err(|e| {
+				log::error!("Failed in offchain_unsigned_tx {:?}", e);
+				<Error<T>>::OffchainUnsignedTxError
+			})
+		}
+
 		fn offchain_unsigned_tx_buy_token(
 			block_number: T::BlockNumber,
 			_recipe_id: u64,
 			buyer: T::AccountId,
-			token_name: Vec<u8>,
-			amount: u64,
+			sell_token_name: Vec<u8>,
+			sell_amount: u64,
+			buy_token_name: Vec<u8>,
 		) -> Result<(), Error<T>> {
-			let call = Call::buy_token_unsigned { block_number, buyer, token_name, amount };
+			let call = Call::buy_token_unsigned {
+				block_number,
+				buyer,
+				sell_token_name,
+				sell_amount,
+				buy_token_name,
+			};
 
 			SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into()).map_err(|e| {
 				log::error!("Failed in offchain_unsigned_tx {:?}", e);
