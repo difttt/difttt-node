@@ -314,10 +314,10 @@ pub type Amount = i128;
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum CurrencyId {
 	Native,
+	USDT,
+	BTC,
 	DOT,
 	KSM,
-	BTC,
-	USDT,
 }
 
 orml_traits::parameter_type_with_key! {
@@ -361,6 +361,8 @@ impl pallet_difttt::Config for Runtime {
 	type Call = Call;
 	type UnsignedPriority = UnsignedPriority;
 	type WeightInfo = pallet_difttt::weights::SubstrateWeight<Runtime>;
+
+	type Currency = Currencies;
 }
 
 impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime

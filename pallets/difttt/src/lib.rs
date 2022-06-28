@@ -76,12 +76,17 @@ pub mod pallet {
 	use crate::{Action, Recipe, Triger};
 	use codec::alloc::string::ToString;
 	use data_encoding::BASE64;
-	use frame_support::{ensure, pallet_prelude::*, traits::UnixTime};
+	use frame_support::{
+		ensure,
+		pallet_prelude::*,
+		traits::{BalanceStatus, UnixTime},
+	};
 	use frame_system::{
 		offchain::{CreateSignedTransaction, SubmitTransaction},
 		pallet_prelude::*,
 	};
 	use lite_json::json::JsonValue;
+	use orml_traits::{MultiCurrency, MultiReservableCurrency};
 	use serde::{Deserialize, Deserializer};
 	use sp_runtime::{
 		offchain::{
@@ -94,6 +99,11 @@ pub mod pallet {
 	};
 
 	use sp_std::{collections::btree_map::BTreeMap, prelude::*, str};
+
+	use sp_runtime::{
+		traits::{AtLeast32BitUnsigned, Bounded, CheckedAdd, MaybeSerializeDeserialize, Zero},
+		DispatchResult, RuntimeDebug,
+	};
 
 	const FETCH_TIMEOUT_PERIOD: u64 = 3000; // in milli-seconds
 	const LOCK_TIMEOUT_EXPIRATION: u64 = FETCH_TIMEOUT_PERIOD + 1000; // in milli-seconds
@@ -134,6 +144,23 @@ pub mod pallet {
 		Ok(s.as_bytes().to_vec())
 	}
 
+	#[derive(Encode, Decode, Clone, RuntimeDebug, Eq, PartialEq, MaxEncodedLen, TypeInfo)]
+	pub struct Order<CurrencyId, Balance, AccountId> {
+		pub base_currency_id: CurrencyId,
+		pub base_amount: Balance,
+		pub target_currency_id: CurrencyId,
+		pub target_amount: Balance,
+		pub owner: AccountId,
+	}
+
+	type BalanceOf<T> =
+		<<T as Config>::Currency as MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance;
+	type CurrencyIdOf<T> = <<T as Config>::Currency as MultiCurrency<
+		<T as frame_system::Config>::AccountId,
+	>>::CurrencyId;
+
+	type OrderOf<T> = Order<CurrencyIdOf<T>, BalanceOf<T>, <T as frame_system::Config>::AccountId>;
+
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
 	pub trait Config: frame_system::Config + CreateSignedTransaction<Call<Self>> {
@@ -153,6 +180,8 @@ pub mod pallet {
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
+
+		type Currency: MultiReservableCurrency<Self::AccountId>;
 	}
 
 	#[pallet::pallet]
@@ -199,6 +228,18 @@ pub mod pallet {
 	#[pallet::getter(fn next_recipe_id)]
 	pub type NextRecipeId<T: Config> = StorageValue<_, u64>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn map_order)]
+	pub(super) type Orders<T: Config> = StorageMap<_, Twox64Concat, u64, OrderOf<T>>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn next_order_id)]
+	pub type NextOrderId<T: Config> = StorageValue<_, u64>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn next_take_order_id)]
+	pub type NextTakeOrderId<T: Config> = StorageValue<_, u64>;
+
 	// Pallets use events to inform users when important changes are made.
 	// https://docs.substrate.io/v3/runtime/events-and-errors
 	#[pallet::event]
@@ -217,6 +258,10 @@ pub mod pallet {
 		RecipeDone(u64),
 		RecipeTrigerTimeUpdated(u64, u64),
 		TokenBought(T::AccountId, Vec<u8>, u64, Vec<u8>),
+
+		OrderCreated(u64, OrderOf<T>),
+		OrderTaken(T::AccountId, u64, OrderOf<T>),
+		OrderCancelled(u64),
 	}
 
 	// Errors inform users that something went wrong.
@@ -232,6 +277,10 @@ pub mod pallet {
 		RecipeIdNotExist,
 		NotOwner,
 		OffchainUnsignedTxError,
+
+		OrderIdOverflow,
+		InvalidOrderId,
+		InsufficientBalance,
 	}
 
 	// Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -399,7 +448,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(<T as Config>::WeightInfo::buy_token_unsigned())]
+		#[pallet::weight(0)]
 		pub fn buy_token_unsigned(
 			origin: OriginFor<T>,
 			_block_number: T::BlockNumber,
@@ -411,6 +460,44 @@ pub mod pallet {
 			// This ensures that the function can only be called via unsigned transaction.
 			ensure_none(origin)?;
 
+			let mut order_id = NextOrderId::<T>::get().unwrap_or_default();
+			if order_id > 0 {
+				order_id = order_id - 1;
+			}
+
+			log::info!("###### buy_token_unsigned. order_id {:?}", order_id);
+
+			Orders::<T>::try_mutate_exists(order_id, |order| -> DispatchResult {
+				let order = order.take().ok_or(Error::<T>::InvalidOrderId)?;
+
+				log::info!("###### order.take(). order {:?}", order);
+				T::Currency::transfer(
+					order.target_currency_id,
+					&buyer,
+					&order.owner,
+					order.target_amount,
+				)?;
+				let val = T::Currency::repatriate_reserved(
+					order.base_currency_id,
+					&order.owner,
+					&buyer,
+					order.base_amount,
+					BalanceStatus::Free,
+				)?;
+				ensure!(val.is_zero(), Error::<T>::InsufficientBalance);
+
+				Self::deposit_event(Event::OrderTaken(buyer.clone(), order_id, order));
+
+				Ok(())
+			})?;
+
+			// NextTakeOrderId::<T>::try_mutate(|id| -> DispatchResult {
+			// 	if let Some(id) = id {
+			// 		*id = id.checked_add(1u64).ok_or(Error::<T>::OrderIdOverflow)?;
+			// 	};
+			// 	Ok(())
+			// })?;
+
 			Self::deposit_event(Event::TokenBought(
 				buyer,
 				sell_token_name,
@@ -420,6 +507,80 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		#[pallet::weight(0)]
+		pub fn submit_order(
+			origin: OriginFor<T>,
+			base_currency_id: CurrencyIdOf<T>,
+			base_amount: BalanceOf<T>,
+			target_currency_id: CurrencyIdOf<T>,
+			target_amount: BalanceOf<T>,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			let order_id = NextOrderId::<T>::get().unwrap_or_default();
+
+			let order = Order {
+				base_currency_id,
+				base_amount,
+				target_currency_id,
+				target_amount,
+				owner: who.clone(),
+			};
+
+			T::Currency::reserve(base_currency_id, &who, base_amount)?;
+
+			Orders::<T>::insert(order_id, &order);
+
+			NextOrderId::<T>::put(order_id.saturating_add(1u64));
+
+			Self::deposit_event(Event::OrderCreated(order_id, order));
+
+			Ok(())
+		}
+
+		#[pallet::weight(0)]
+		pub fn take_order(origin: OriginFor<T>, order_id: u64) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			Orders::<T>::try_mutate_exists(order_id, |order| -> DispatchResult {
+				let order = order.take().ok_or(Error::<T>::InvalidOrderId)?;
+				T::Currency::transfer(
+					order.target_currency_id,
+					&who,
+					&order.owner,
+					order.target_amount,
+				)?;
+				let val = T::Currency::repatriate_reserved(
+					order.base_currency_id,
+					&order.owner,
+					&who,
+					order.base_amount,
+					BalanceStatus::Free,
+				)?;
+				ensure!(val.is_zero(), Error::<T>::InsufficientBalance);
+
+				Self::deposit_event(Event::OrderTaken(who, order_id, order));
+
+				Ok(())
+			})?;
+			Ok(())
+		}
+
+		// #[pallet::weight(0)]
+		// pub fn cancel_order(origin: OriginFor<T>, order_id: u64)-> DispatchResult {
+		// 	let who = ensure_signed(origin)?;
+
+		// 	Orders::<T>::try_mutate_exists(order_id, |order| -> DispatchResult {
+		// 		let order = order.take().ok_or(Error::<T>::InvalidOrderId)?;
+
+		// 		ensure!(order.owner == who, Error::<T>::NotOwner);
+
+		// 		Self::deposit_event(RawEvent::OrderCancelled(order_id));
+
+		// 		Ok(())
+		// 	})?;
+		// }
 	}
 
 	#[pallet::hooks]
@@ -554,9 +715,15 @@ pub mod pallet {
 										recipe.last_triger_timestamp,
 									);
 
+									log::info!(
+										"####before in time check {:?} {:?}",
+										timestamp_now.as_secs() - recipe.last_triger_timestamp,
+										interval
+									);
 									if timestamp_now.as_secs() - recipe.last_triger_timestamp >
 										interval
 									{
+										log::info!("#### in time check");
 										(*recipe).last_triger_timestamp = timestamp_now.as_secs();
 										match Self::offchain_unsigned_tx_update_recipe_triger_time(
 											block_number,
@@ -575,6 +742,7 @@ pub mod pallet {
 										};
 
 										if indicator > fetch_arh999 {
+											log::info!("#### indicator > fetch_arh999");
 											(*recipe).times += 1;
 											//(*recipe).done = true;
 
