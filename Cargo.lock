@@ -3971,15 +3971,17 @@ checksum = "ff011a302c396a5197692431fc1948019154afc178baf7d8e37367442a4601cf"
 [[package]]
 name = "orml-currencies"
 version = "0.4.1-dev"
-source = "git+https://github.com/open-web3-stack/open-runtime-module-library?rev=f709ed62262435b3ad80482d309e3575625d1e5b#f709ed62262435b3ad80482d309e3575625d1e5b"
 dependencies = [
  "frame-support",
  "frame-system",
+ "orml-tokens",
  "orml-traits",
  "orml-utilities",
+ "pallet-balances",
  "parity-scale-codec",
  "scale-info",
  "serde",
+ "sp-core",
  "sp-io",
  "sp-runtime",
  "sp-std",
@@ -3988,14 +3990,18 @@ dependencies = [
 [[package]]
 name = "orml-tokens"
 version = "0.4.1-dev"
-source = "git+https://github.com/open-web3-stack/open-runtime-module-library?rev=f709ed62262435b3ad80482d309e3575625d1e5b#f709ed62262435b3ad80482d309e3575625d1e5b"
 dependencies = [
  "frame-support",
  "frame-system",
  "orml-traits",
+ "pallet-difttt",
+ "pallet-elections-phragmen",
+ "pallet-treasury",
  "parity-scale-codec",
  "scale-info",
  "serde",
+ "sp-core",
+ "sp-io",
  "sp-runtime",
  "sp-std",
 ]
@@ -4003,7 +4009,6 @@ dependencies = [
 [[package]]
 name = "orml-traits"
 version = "0.4.1-dev"
-source = "git+https://github.com/open-web3-stack/open-runtime-module-library?rev=f709ed62262435b3ad80482d309e3575625d1e5b#f709ed62262435b3ad80482d309e3575625d1e5b"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -4021,12 +4026,13 @@ dependencies = [
 [[package]]
 name = "orml-utilities"
 version = "0.4.1-dev"
-source = "git+https://github.com/open-web3-stack/open-runtime-module-library?rev=f709ed62262435b3ad80482d309e3575625d1e5b#f709ed62262435b3ad80482d309e3575625d1e5b"
 dependencies = [
  "frame-support",
+ "frame-system",
  "parity-scale-codec",
  "scale-info",
  "serde",
+ "serde_json",
  "sp-io",
  "sp-runtime",
  "sp-std",
@@ -4127,6 +4133,23 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-elections-phragmen"
+version = "5.0.0-dev"
+source = "git+https://github.com/paritytech/substrate.git?branch=polkadot-v0.9.22#616d33ea23bab86cafffaf116fc607b6790fb4eb"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "log",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-npos-elections",
  "sp-runtime",
  "sp-std",
 ]
@@ -4262,6 +4285,22 @@ dependencies = [
  "parity-scale-codec",
  "sp-api",
  "sp-runtime",
+]
+
+[[package]]
+name = "pallet-treasury"
+version = "4.0.0-dev"
+source = "git+https://github.com/paritytech/substrate.git?branch=polkadot-v0.9.22#616d33ea23bab86cafffaf116fc607b6790fb4eb"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "impl-trait-for-tuples",
+ "pallet-balances",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]
@@ -6939,6 +6978,20 @@ source = "git+https://github.com/paritytech/substrate.git?branch=polkadot-v0.9.2
 dependencies = [
  "thiserror",
  "zstd",
+]
+
+[[package]]
+name = "sp-npos-elections"
+version = "4.0.0-dev"
+source = "git+https://github.com/paritytech/substrate.git?branch=polkadot-v0.9.22#616d33ea23bab86cafffaf116fc607b6790fb4eb"
+dependencies = [
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-arithmetic",
+ "sp-core",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]
