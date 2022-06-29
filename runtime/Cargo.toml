@@ -51,9 +51,9 @@ frame-benchmarking = { version = "4.0.0-dev", default-features = false, git = "h
 frame-system-benchmarking = { version = "4.0.0-dev", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.22", optional = true }
 hex-literal = { version = "0.3.4", optional = true }
 
-orml-currencies = { default-features = false, version = '0.4.1-dev', git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "f709ed62262435b3ad80482d309e3575625d1e5b" }
-orml-tokens = { default-features = false, version = '0.4.1-dev', git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "f709ed62262435b3ad80482d309e3575625d1e5b" }
-orml-traits = { default-features = false, version = '0.4.1-dev', git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "f709ed62262435b3ad80482d309e3575625d1e5b" }
+orml-currencies = { default-features = false, path = "../open-runtime-module-library/currencies" }
+orml-tokens = { default-features = false, path = "../open-runtime-module-library/tokens" }
+orml-traits = { default-features = false, path = "../open-runtime-module-library/traits" }
 
 # Local Dependencies
 pallet-difttt = { version = "4.0.0-dev", default-features = false, path = "../pallets/difttt" }

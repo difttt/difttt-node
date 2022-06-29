@@ -25,13 +25,15 @@ pub use weights::WeightInfo;
 #[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 // #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 // #[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
-pub enum Triger {
+pub enum Triger<Balance> {
 	Timer(u64, u64),    //insert_time,  timer_seconds
 	Schedule(u64, u64), //insert_time,  timestamp
 	PriceGT(u64, u64),  //insert_time,  price   //todo,price use float
 	PriceLT(u64, u64),  //insert_time,  price   //todo,price use float
 	Arh999LT(u64, u64, u64), /* insert_time,  indicator, seconds buy interval   //todo,
 	                     * indicator use float */
+	TransferProtect(Balance, u64), /* limit amout per transfer, transfer count limit per 100
+	                                * blocks */
 }
 
 #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
@@ -70,6 +72,11 @@ pub struct Recipe {
 	last_triger_timestamp: u64,
 }
 
+pub trait TransferProtectInterface<Balance> {
+	fn get_amout_limit() -> Balance;
+	fn get_tx_block_limit() -> u64;
+}
+
 #[frame_support::pallet]
 pub mod pallet {
 	pub use crate::weights::WeightInfo;
@@ -100,6 +107,7 @@ pub mod pallet {
 
 	use sp_std::{collections::btree_map::BTreeMap, prelude::*, str};
 
+	use crate::TransferProtectInterface;
 	use sp_runtime::{
 		traits::{AtLeast32BitUnsigned, Bounded, CheckedAdd, MaybeSerializeDeserialize, Zero},
 		DispatchResult, RuntimeDebug,
@@ -208,7 +216,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn map_triger)]
-	pub(super) type MapTriger<T: Config> = StorageMap<_, Twox64Concat, u64, Triger>;
+	pub(super) type MapTriger<T: Config> = StorageMap<_, Twox64Concat, u64, Triger<BalanceOf<T>>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn map_action)]
@@ -240,6 +248,14 @@ pub mod pallet {
 	#[pallet::getter(fn next_take_order_id)]
 	pub type NextTakeOrderId<T: Config> = StorageValue<_, u64>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn amount_limit)]
+	pub type AmountLimit<T: Config> = StorageValue<_, BalanceOf<T>>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn tx_block_limit)]
+	pub type TxBlockLimit<T: Config> = StorageValue<_, u64>;
+
 	// Pallets use events to inform users when important changes are made.
 	// https://docs.substrate.io/v3/runtime/events-and-errors
 	#[pallet::event]
@@ -249,7 +265,7 @@ pub mod pallet {
 		/// parameters. [something, who]
 		SomethingStored(u32, T::AccountId),
 
-		TrigerCreated(u64, Triger),
+		TrigerCreated(u64, Triger<BalanceOf<T>>),
 		ActionCreated(u64, Action<T::AccountId>),
 		RecipeCreated(u64, Recipe),
 		RecipeRemoved(u64),
@@ -290,7 +306,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// create_trigerid
 		#[pallet::weight(<T as Config>::WeightInfo::create_triger())]
-		pub fn create_triger(origin: OriginFor<T>, triger: Triger) -> DispatchResult {
+		pub fn create_triger(origin: OriginFor<T>, triger: Triger<BalanceOf<T>>) -> DispatchResult {
 			let user = ensure_signed(origin)?;
 			let triger_id = NextTrigerId::<T>::get().unwrap_or_default();
 
@@ -298,6 +314,13 @@ pub mod pallet {
 			TrigerOwner::<T>::insert(user, triger_id, ());
 			NextTrigerId::<T>::put(triger_id.saturating_add(One::one()));
 
+			match triger.clone() {
+				Triger::TransferProtect(amout_limit, blocks_amount) => {
+					AmountLimit::<T>::put(amout_limit);
+					TxBlockLimit::<T>::put(blocks_amount);
+				},
+				_ => {},
+			}
 			Self::deposit_event(Event::TrigerCreated(triger_id, triger));
 
 			Ok(())
@@ -1335,6 +1358,15 @@ pub mod pallet {
 
 		fn current_block_number() -> Self::BlockNumber {
 			<frame_system::Pallet<T>>::block_number()
+		}
+	}
+
+	impl<T: Config> TransferProtectInterface<BalanceOf<T>> for Pallet<T> {
+		fn get_amout_limit() -> BalanceOf<T> {
+			AmountLimit::<T>::get().unwrap_or(Default::default())
+		}
+		fn get_tx_block_limit() -> u64 {
+			TxBlockLimit::<T>::get().unwrap_or(3)
 		}
 	}
 }

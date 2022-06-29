@@ -31,8 +31,8 @@ log = { version = "0.4.14", default-features = false }
 lite-json = { version = "0.1", default-features = false }
 data-encoding = { version = "2.3.2", default-features = false, features = ["alloc"] }
 
-orml-traits = { default-features = false, version = '0.4.1-dev', git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "f709ed62262435b3ad80482d309e3575625d1e5b" }
-orml-utilities = { default-features = false, version = '0.4.1-dev', git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "f709ed62262435b3ad80482d309e3575625d1e5b" }
+orml-traits = { default-features = false,  path = "../../open-runtime-module-library/traits" }
+orml-utilities = { default-features = false, path = "../../open-runtime-module-library/utilities" }
 
 [dev-dependencies]
 sp-core = { default-features = false, version = "6.0.0", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.22" }
