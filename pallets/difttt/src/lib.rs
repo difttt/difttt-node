@@ -32,8 +32,8 @@ pub enum Triger<Balance> {
 	PriceLT(u64, u64),  //insert_time,  price   //todo,price use float
 	Arh999LT(u64, u64, u64), /* insert_time,  indicator, seconds buy interval   //todo,
 	                     * indicator use float */
-	TransferProtect(Balance, u64), /* limit amout per transfer, transfer count limit per 100
-	                                * blocks */
+	TransferProtect(u64, Balance, u64), /* limit amout per transfer, transfer count limit per
+	                                     * 100 blocks */
 }
 
 #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
@@ -315,7 +315,7 @@ pub mod pallet {
 			NextTrigerId::<T>::put(triger_id.saturating_add(One::one()));
 
 			match triger.clone() {
-				Triger::TransferProtect(amout_limit, blocks_amount) => {
+				Triger::TransferProtect(_, amout_limit, blocks_amount) => {
 					AmountLimit::<T>::put(amout_limit);
 					TxBlockLimit::<T>::put(blocks_amount);
 				},
