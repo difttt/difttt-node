@@ -34,6 +34,7 @@ pub enum Triger<Balance> {
 	                     * indicator use float */
 	TransferProtect(u64, Balance, u64), /* limit amout per transfer, transfer count limit per
 	                                     * 100 blocks */
+	OakTimer(u64, u64, u64), //insert_time, cycle_seconds, repeat times,
 }
 
 #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
@@ -58,6 +59,13 @@ pub enum Action<AccountId> {
 		BoundedVec<u8, ConstU32<32>>,
 		BoundedVec<u8, ConstU32<128>>,
 	), /* Address, SellTokenName, SellAmount, BuyTokenName, info-mail-recevicer */
+	MailByLocalServer(
+		BoundedVec<u8, ConstU32<128>>,
+		BoundedVec<u8, ConstU32<128>>,
+		BoundedVec<u8, ConstU32<256>>,
+	), //revicer, title, body
+	Slack(BoundedVec<u8, ConstU32<256>>, BoundedVec<u8, ConstU32<256>>), /*slack_hook_url,
+	                                                                      * message */
 }
 
 #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
@@ -779,6 +787,7 @@ pub mod pallet {
 								},
 							};
 						},
+						Some(Triger::OakTimer(_, _, _)) => {},
 						_ => {},
 					}
 				}
@@ -1031,6 +1040,64 @@ pub mod pallet {
 							},
 							Err(e) => {
 								log::info!("###### submit_unsigned_transaction error  {:?}", e);
+							},
+						};
+					},
+					Some(Action::MailByLocalServer(_, _, _)) => {},
+					Some(Action::Slack(url, message)) => {
+						let url = match scale_info::prelude::string::String::from_utf8(url.to_vec())
+						{
+							Ok(v) => v,
+							Err(e) => {
+								log::info!("###### decode url error  {:?}", e);
+								continue
+							},
+						};
+
+						let message = match scale_info::prelude::string::String::from_utf8(
+							message.to_vec(),
+						) {
+							Ok(v) => v,
+							Err(e) => {
+								log::info!("###### decode message error  {:?}", e);
+								continue
+							},
+						};
+
+						let options = scale_info::prelude::format!(
+							"node index.js --url={} --message={}",
+							url,
+							message,
+						);
+
+						log::info!("###### publish_task slack options  {:?}", options);
+
+						let _rt = match Self::publish_task(
+							"registry.cn-shenzhen.aliyuncs.com/difttt/slack-notify:latest",
+							&options,
+							3,
+						) {
+							Ok(_i) => {
+								log::info!("###### publish_task slack ok");
+
+								match Self::offchain_unsigned_tx_recipe_done(
+									block_number,
+									*recipe_id,
+								) {
+									Ok(_) => {
+										log::info!("###### submit_unsigned_transaction ok");
+									},
+									Err(e) => {
+										log::info!(
+											"###### submit_unsigned_transaction error  {:?}",
+											e
+										);
+									},
+								};
+							},
+
+							Err(e) => {
+								log::info!("###### publish_task slack error  {:?}", e);
 							},
 						};
 					},
@@ -1302,6 +1369,94 @@ pub mod pallet {
 			}
 
 			Ok(0)
+		}
+
+		fn create_oak_schedule_task(
+			cycle_seconds: u64,
+			repeat_times: u64,
+			message: &str,
+		) -> Result<scale_info::prelude::string::String, http::Error> {
+			let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(10_000));
+			let message = BASE64.encode(message.as_bytes());
+			let cycle_millisecond = cycle_seconds * 1000;
+
+			//let url = "https://reqbin.com/echo/post/json";
+			let url = "http://127.0.0.1:9000/".to_owned() +
+				&cycle_millisecond.to_string() +
+				"/" + &repeat_times.to_string() +
+				"/" + &message.to_owned();
+
+			let request = http::Request::get(&url).add_header("content-type", "application/json");
+
+			let pending = request.deadline(deadline).send().map_err(|e| {
+				log::info!("####post pending error: {:?}", e);
+				http::Error::IoError
+			})?;
+
+			let response = pending.try_wait(deadline).map_err(|e| {
+				log::info!("####post response error: {:?}", e);
+				http::Error::DeadlineReached
+			})??;
+
+			if response.code != 200 {
+				log::info!("Unexpected status code: {}", response.code);
+				return Err(http::Error::Unknown)
+			}
+
+			let body = response.body().collect::<Vec<u8>>();
+
+			// Create a str slice from the body.
+			let body_str = sp_std::str::from_utf8(&body).map_err(|_| {
+				log::info!("No UTF8 body");
+				http::Error::Unknown
+			})?;
+
+			if body_str.len() > 0 {
+				let rt = scale_info::prelude::string::String::from(body_str);
+				return Ok(rt)
+			};
+
+			Ok("".to_string())
+		}
+
+		fn get_automation_time_task_queue(
+		) -> Result<scale_info::prelude::string::String, http::Error> {
+			let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(10_000));
+
+			//let url = "https://reqbin.com/echo/post/json";
+			let url = "http://127.0.0.1:9000/".to_owned();
+
+			let request = http::Request::get(&url).add_header("content-type", "application/json");
+
+			let pending = request.deadline(deadline).send().map_err(|e| {
+				log::info!("####post pending error: {:?}", e);
+				http::Error::IoError
+			})?;
+
+			let response = pending.try_wait(deadline).map_err(|e| {
+				log::info!("####post response error: {:?}", e);
+				http::Error::DeadlineReached
+			})??;
+
+			if response.code != 200 {
+				log::info!("Unexpected status code: {}", response.code);
+				return Err(http::Error::Unknown)
+			}
+
+			let body = response.body().collect::<Vec<u8>>();
+
+			// Create a str slice from the body.
+			let body_str = sp_std::str::from_utf8(&body).map_err(|_| {
+				log::info!("No UTF8 body");
+				http::Error::Unknown
+			})?;
+
+			if body_str.len() > 0 {
+				let rt = scale_info::prelude::string::String::from(body_str);
+				return Ok(rt)
+			};
+
+			Ok("".to_string())
 		}
 
 		fn offchain_unsigned_tx_recipe_done(
