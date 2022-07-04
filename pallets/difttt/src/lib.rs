@@ -78,6 +78,7 @@ pub struct Recipe {
 	times: u64,
 	done: bool,
 	last_triger_timestamp: u64,
+	oak_hash: BoundedVec<u8, ConstU32<128>>,
 }
 
 pub trait TransferProtectInterface<Balance> {
@@ -158,6 +159,19 @@ pub mod pallet {
 	{
 		let s: &str = Deserialize::deserialize(de)?;
 		Ok(s.as_bytes().to_vec())
+	}
+
+	#[derive(Deserialize, Encode, Decode, Default, RuntimeDebug)]
+	struct NotifyEventData {
+		#[serde(deserialize_with = "de_string_to_bytes")]
+		id: Vec<u8>,
+		#[serde(deserialize_with = "de_string_to_bytes")]
+		module: Vec<u8>,
+		#[serde(deserialize_with = "de_string_to_bytes")]
+		method: Vec<u8>,
+		#[serde(deserialize_with = "de_string_to_bytes")]
+		message: Vec<u8>,
+		timestampnumber: u64,
 	}
 
 	#[derive(Encode, Decode, Clone, RuntimeDebug, Eq, PartialEq, MaxEncodedLen, TypeInfo)]
@@ -281,6 +295,7 @@ pub mod pallet {
 		RecipeTurnOffed(u64),
 		RecipeDone(u64),
 		RecipeTrigerTimeUpdated(u64, u64),
+		RecipeOakHashUpdated(u64, Vec<u8>),
 		TokenBought(T::AccountId, Vec<u8>, u64, Vec<u8>),
 
 		OrderCreated(u64, OrderOf<T>),
@@ -369,6 +384,7 @@ pub mod pallet {
 				times: 0,
 				done: false,
 				last_triger_timestamp: 0,
+				oak_hash: Default::default(),
 			};
 
 			MapRecipe::<T>::insert(recipe_id, recipe.clone());
@@ -472,6 +488,34 @@ pub mod pallet {
 				if let Some(recipe) = recipe {
 					recipe.last_triger_timestamp = timestamp;
 					Self::deposit_event(Event::RecipeTrigerTimeUpdated(recipe_id, timestamp));
+				}
+				Ok(())
+			})?;
+
+			Ok(())
+		}
+
+		#[pallet::weight(0)]
+		pub fn update_recipe_oak_hash_unsigned(
+			origin: OriginFor<T>,
+			_block_number: T::BlockNumber,
+			recipe_id: u64,
+			hash: Vec<u8>,
+		) -> DispatchResult {
+			// This ensures that the function can only be called via unsigned transaction.
+			ensure_none(origin)?;
+
+			ensure!(MapRecipe::<T>::contains_key(&recipe_id), Error::<T>::RecipeIdNotExist);
+
+			MapRecipe::<T>::try_mutate(recipe_id, |recipe| -> DispatchResult {
+				if let Some(recipe) = recipe {
+					let mut oak_hash: BoundedVec<u8, ConstU32<128>> = Default::default();
+					for x in &hash {
+						oak_hash.try_push(*x);
+					}
+
+					recipe.oak_hash = oak_hash;
+					Self::deposit_event(Event::RecipeOakHashUpdated(recipe_id, hash));
 				}
 				Ok(())
 			})?;
@@ -635,11 +679,28 @@ pub mod pallet {
 				map_recipe_task = BTreeMap::new();
 			}
 
+			let store_last_event_id_info =
+				StorageValueRef::persistent(b"difttt_ocw::last_event_id");
+
+			let mut last_event_id_info: NotifyEventData;
+			if let Ok(Some(info)) = store_last_event_id_info.get::<NotifyEventData>() {
+				last_event_id_info = info;
+			} else {
+				last_event_id_info = Default::default();
+			}
+
 			let mut lock = StorageLock::<BlockAndTime<Self>>::with_block_and_time_deadline(
 				b"offchain-demo::lock",
 				LOCK_BLOCK_EXPIRATION,
 				Duration::from_millis(LOCK_TIMEOUT_EXPIRATION),
 			);
+
+			let mut lock_last_event_id_info =
+				StorageLock::<BlockAndTime<Self>>::with_block_and_time_deadline(
+					b"offchain-demo::lock",
+					LOCK_BLOCK_EXPIRATION,
+					Duration::from_millis(LOCK_TIMEOUT_EXPIRATION),
+				);
 
 			let mut map_running_action_recipe_task: BTreeMap<u64, Recipe> = BTreeMap::new();
 			if let Ok(_guard) = lock.try_lock() {
@@ -656,6 +717,7 @@ pub mod pallet {
 									times: 0,
 									done: false,
 									last_triger_timestamp: 0,
+									oak_hash: Default::default(),
 								},
 							);
 						}
@@ -787,7 +849,68 @@ pub mod pallet {
 								},
 							};
 						},
-						Some(Triger::OakTimer(_, _, _)) => {},
+						Some(Triger::OakTimer(_, _, repeat_times)) => {
+							let action = MapAction::<T>::get(recipe.action_id);
+							let message = match action {
+								Some(Action::Slack(_, slack_message)) => slack_message,
+								Some(Action::MailWithToken(_, _, _, _, body)) => body,
+								_ => Default::default(),
+							};
+
+							let message = match scale_info::prelude::string::String::from_utf8(
+								message.to_vec(),
+							) {
+								Ok(v) => v,
+								Err(e) => {
+									log::info!("###### decode message error  {:?}", e);
+									continue
+								},
+							};
+
+							if recipe.oak_hash.len() < 1 {
+								let hash = match Self::create_oak_schedule_task(
+									1u64,
+									repeat_times,
+									&message,
+								) {
+									Ok(hash) => hash,
+									_ => continue,
+								};
+
+								let mut oak_hash: Vec<u8> = Default::default();
+								for x in &hash.into_bytes() {
+									(*recipe).oak_hash.try_push(*x);
+								}
+							}
+
+							let oak_hash = recipe.oak_hash.to_vec();
+
+							match Self::offchain_unsigned_tx_update_recipe_oak_hash(
+								block_number,
+								*recipe_id,
+								oak_hash,
+							) {
+								Ok(_) => {
+									log::info!("###### submit_unsigned_transaction ok");
+								},
+								Err(e) => {
+									log::info!("###### submit_unsigned_transaction error  {:?}", e);
+									continue
+								},
+							};
+
+							let data = match Self::get_automation_time_last_event() {
+								Ok(v) => v,
+								Err(e) => {
+									log::info!("###### submit_unsigned_transaction error  {:?}", e);
+									continue
+								},
+							};
+
+							if data != last_event_id_info {
+								map_running_action_recipe_task.insert(*recipe_id, recipe.clone());
+							}
+						},
 						_ => {},
 					}
 				}
@@ -1135,6 +1258,11 @@ pub mod pallet {
 					recipe_id: _,
 					timestamp: _,
 				} => valid_tx(b"update_recipe_triger_time_unsigned".to_vec()),
+				Call::update_recipe_oak_hash_unsigned {
+					block_number: _,
+					recipe_id: _,
+					hash: _,
+				} => valid_tx(b"update_recipe_oak_hash_unsigned".to_vec()),
 				Call::buy_token_unsigned {
 					block_number: _,
 					buyer: _,
@@ -1377,12 +1505,12 @@ pub mod pallet {
 			message: &str,
 		) -> Result<scale_info::prelude::string::String, http::Error> {
 			let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(10_000));
-			let message = BASE64.encode(message.as_bytes());
-			let cycle_millisecond = cycle_seconds * 1000;
+			// let message = BASE64.encode(message.as_bytes());
+			// let cycle_millisecond = cycle_seconds * 1000;
 
 			//let url = "https://reqbin.com/echo/post/json";
-			let url = "http://127.0.0.1:9000/".to_owned() +
-				&cycle_millisecond.to_string() +
+			let url = "http://127.0.0.1:3000/notify/extrinsic/".to_owned() +
+				// &cycle_millisecond.to_string() +
 				"/" + &repeat_times.to_string() +
 				"/" + &message.to_owned();
 
@@ -1424,7 +1552,7 @@ pub mod pallet {
 			let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(10_000));
 
 			//let url = "https://reqbin.com/echo/post/json";
-			let url = "http://127.0.0.1:9000/".to_owned();
+			let url = "http://127.0.0.1:3000/api/hash".to_owned();
 
 			let request = http::Request::get(&url).add_header("content-type", "application/json");
 
@@ -1459,6 +1587,45 @@ pub mod pallet {
 			Ok("".to_string())
 		}
 
+		fn get_automation_time_last_event() -> Result<NotifyEventData, http::Error> {
+			let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(10_000));
+
+			let url = "http://127.0.0.1:3000/event".to_owned();
+
+			let request = http::Request::get(&url).add_header("content-type", "application/json");
+
+			let pending = request.deadline(deadline).send().map_err(|e| {
+				log::info!("####post pending error: {:?}", e);
+				http::Error::IoError
+			})?;
+
+			let response = pending.try_wait(deadline).map_err(|e| {
+				log::info!("####post response error: {:?}", e);
+				http::Error::DeadlineReached
+			})??;
+
+			if response.code != 200 {
+				log::info!("Unexpected status code: {}", response.code);
+				return Err(http::Error::Unknown)
+			}
+
+			let body = response.body().collect::<Vec<u8>>();
+
+			// Create a str slice from the body.
+			let body_str = sp_std::str::from_utf8(&body).map_err(|_| {
+				log::info!("No UTF8 body");
+				http::Error::Unknown
+			})?;
+
+			let notify_event_data: NotifyEventData =
+				serde_json::from_str(&body_str).map_err(|e| {
+					log::error!("get_automation_time_last_event ParseError error: {:?}", e);
+					http::Error::Unknown
+				})?;
+
+			Ok(notify_event_data)
+		}
+
 		fn offchain_unsigned_tx_recipe_done(
 			block_number: T::BlockNumber,
 			recipe_id: u64,
@@ -1478,6 +1645,19 @@ pub mod pallet {
 		) -> Result<(), Error<T>> {
 			let call =
 				Call::update_recipe_triger_time_unsigned { block_number, recipe_id, timestamp };
+
+			SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into()).map_err(|e| {
+				log::error!("Failed in offchain_unsigned_tx {:?}", e);
+				<Error<T>>::OffchainUnsignedTxError
+			})
+		}
+
+		fn offchain_unsigned_tx_update_recipe_oak_hash(
+			block_number: T::BlockNumber,
+			recipe_id: u64,
+			hash: Vec<u8>,
+		) -> Result<(), Error<T>> {
+			let call = Call::update_recipe_oak_hash_unsigned { block_number, recipe_id, hash };
 
 			SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into()).map_err(|e| {
 				log::error!("Failed in offchain_unsigned_tx {:?}", e);
