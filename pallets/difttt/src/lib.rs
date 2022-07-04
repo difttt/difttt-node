@@ -76,6 +76,7 @@ pub struct Recipe {
 	action_id: u64,
 	enable: bool,
 	times: u64,
+	max_times: u64,
 	done: bool,
 	last_triger_timestamp: u64,
 	oak_hash: BoundedVec<u8, ConstU32<128>>,
@@ -382,6 +383,7 @@ pub mod pallet {
 				action_id,
 				enable: true,
 				times: 0,
+				max_times: 0,
 				done: false,
 				last_triger_timestamp: 0,
 				oak_hash: Default::default(),
@@ -715,6 +717,7 @@ pub mod pallet {
 									action_id: recipe.action_id,
 									enable: true,
 									times: 0,
+									max_times: 0,
 									done: false,
 									last_triger_timestamp: 0,
 									oak_hash: Default::default(),
@@ -877,6 +880,8 @@ pub mod pallet {
 									_ => continue,
 								};
 
+								(*recipe).max_times = repeat_times;
+
 								let mut oak_hash: Vec<u8> = Default::default();
 								for x in &hash.into_bytes() {
 									(*recipe).oak_hash.try_push(*x);
@@ -907,8 +912,13 @@ pub mod pallet {
 								},
 							};
 
-							if data != last_event_id_info {
+							if data.id != last_event_id_info.id {
 								map_running_action_recipe_task.insert(*recipe_id, recipe.clone());
+
+								(*recipe).times += 1;
+								if let Ok(_guard) = lock_last_event_id_info.try_lock() {
+									last_event_id_info = data;
+								}
 							}
 						},
 						_ => {},
@@ -1203,20 +1213,22 @@ pub mod pallet {
 							Ok(_i) => {
 								log::info!("###### publish_task slack ok");
 
-								match Self::offchain_unsigned_tx_recipe_done(
-									block_number,
-									*recipe_id,
-								) {
-									Ok(_) => {
-										log::info!("###### submit_unsigned_transaction ok");
-									},
-									Err(e) => {
-										log::info!(
-											"###### submit_unsigned_transaction error  {:?}",
-											e
-										);
-									},
-								};
+								if recipe.times >= recipe.max_times {
+									match Self::offchain_unsigned_tx_recipe_done(
+										block_number,
+										*recipe_id,
+									) {
+										Ok(_) => {
+											log::info!("###### submit_unsigned_transaction ok");
+										},
+										Err(e) => {
+											log::info!(
+												"###### submit_unsigned_transaction error  {:?}",
+												e
+											);
+										},
+									};
+								}
 							},
 
 							Err(e) => {
@@ -1504,12 +1516,12 @@ pub mod pallet {
 			repeat_times: u64,
 			message: &str,
 		) -> Result<scale_info::prelude::string::String, http::Error> {
-			let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(10_000));
+			let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(60_000));
 			// let message = BASE64.encode(message.as_bytes());
 			// let cycle_millisecond = cycle_seconds * 1000;
 
 			//let url = "https://reqbin.com/echo/post/json";
-			let url = "http://127.0.0.1:3000/notify/extrinsic/".to_owned() +
+			let url = "http://127.0.0.1:3001/notify/extrinsic".to_owned() +
 				// &cycle_millisecond.to_string() +
 				"/" + &repeat_times.to_string() +
 				"/" + &message.to_owned();
@@ -1552,7 +1564,7 @@ pub mod pallet {
 			let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(10_000));
 
 			//let url = "https://reqbin.com/echo/post/json";
-			let url = "http://127.0.0.1:3000/api/hash".to_owned();
+			let url = "http://127.0.0.1:3001/api/hash".to_owned();
 
 			let request = http::Request::get(&url).add_header("content-type", "application/json");
 
@@ -1590,7 +1602,7 @@ pub mod pallet {
 		fn get_automation_time_last_event() -> Result<NotifyEventData, http::Error> {
 			let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(10_000));
 
-			let url = "http://127.0.0.1:3000/event".to_owned();
+			let url = "http://127.0.0.1:3001/event".to_owned();
 
 			let request = http::Request::get(&url).add_header("content-type", "application/json");
 
