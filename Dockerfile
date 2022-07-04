@@ -37,8 +37,6 @@ RUN mv /usr/share/ca* /tmp && \
 	ln -s /node-template/.local/share/node-template /data
 
 COPY --from=builder /node-template/target/$PROFILE/node-template /usr/local/bin
-COPY --from=builder /node-template/target/$PROFILE/node-rpc-client /usr/local/bin
-COPY --from=builder /node-template/target/$PROFILE/node-bench /usr/local/bin
 
 # checks
 RUN ldd /usr/local/bin/node-template && \
