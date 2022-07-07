@@ -6,8 +6,8 @@ use super::*;
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{
-		ChangeMembers, ConstU32, ConstU64, ContainsLengthBound, Everything, GenesisBuild,
-		SaturatingCurrencyToVote, SortedMembers,
+		ChangeMembers, ConstU32, ConstU64, ContainsLengthBound, Everything, GenesisBuild, SaturatingCurrencyToVote,
+		SortedMembers,
 	},
 	PalletId,
 };
@@ -166,7 +166,10 @@ impl ChangeMembers<AccountId> for TestChangeMembers {
 		new_plus_outgoing.extend_from_slice(outgoing);
 		new_plus_outgoing.sort();
 
-		assert_eq!(old_plus_incoming, new_plus_outgoing, "change members call is incorrect!");
+		assert_eq!(
+			old_plus_incoming, new_plus_outgoing,
+			"change members call is incorrect!"
+		);
 
 		MEMBERS.with(|m| *m.borrow_mut() = new.to_vec());
 		PRIME.with(|p| *p.borrow_mut() = None);
@@ -217,8 +220,53 @@ parameter_type_with_key! {
 	};
 }
 
+thread_local! {
+	pub static CREATED: RefCell<Vec<(AccountId, CurrencyId)>> = RefCell::new(vec![]);
+	pub static KILLED: RefCell<Vec<(AccountId, CurrencyId)>> = RefCell::new(vec![]);
+}
+
+pub struct TrackCreatedAccounts;
+impl TrackCreatedAccounts {
+	pub fn accounts() -> Vec<(AccountId, CurrencyId)> {
+		CREATED.with(|accounts| accounts.borrow().clone())
+	}
+
+	pub fn reset() {
+		CREATED.with(|accounts| {
+			accounts.replace(vec![]);
+		});
+	}
+}
+impl Happened<(AccountId, CurrencyId)> for TrackCreatedAccounts {
+	fn happened((who, currency): &(AccountId, CurrencyId)) {
+		CREATED.with(|accounts| {
+			accounts.borrow_mut().push((who.clone(), *currency));
+		});
+	}
+}
+
+pub struct TrackKilledAccounts;
+impl TrackKilledAccounts {
+	pub fn accounts() -> Vec<(AccountId, CurrencyId)> {
+		KILLED.with(|accounts| accounts.borrow().clone())
+	}
+
+	pub fn reset() {
+		KILLED.with(|accounts| {
+			accounts.replace(vec![]);
+		});
+	}
+}
+impl Happened<(AccountId, CurrencyId)> for TrackKilledAccounts {
+	fn happened((who, currency): &(AccountId, CurrencyId)) {
+		KILLED.with(|accounts| {
+			accounts.borrow_mut().push((who.clone(), *currency));
+		});
+	}
+}
+
 parameter_types! {
-	pub DustReceiver: AccountId = PalletId(*b"orml/dst").into_account();
+	pub DustReceiver: AccountId = PalletId(*b"orml/dst").into_account_truncating();
 }
 
 impl Config for Runtime {
@@ -229,6 +277,8 @@ impl Config for Runtime {
 	type WeightInfo = ();
 	type ExistentialDeposits = ExistentialDeposits;
 	type OnDust = TransferDust<Runtime, DustReceiver>;
+	type OnNewTokenAccount = TrackCreatedAccounts;
+	type OnKilledTokenAccount = TrackKilledAccounts;
 	type MaxLocks = ConstU32<2>;
 	type MaxReserves = ConstU32<2>;
 	type ReserveIdentifier = ReserveIdentifier;
@@ -259,7 +309,10 @@ pub struct ExtBuilder {
 
 impl Default for ExtBuilder {
 	fn default() -> Self {
-		Self { balances: vec![], treasury_genesis: false }
+		Self {
+			balances: vec![],
+			treasury_genesis: false,
+		}
 	}
 }
 
@@ -270,18 +323,18 @@ impl ExtBuilder {
 	}
 
 	pub fn build(self) -> sp_io::TestExternalities {
-		let mut t = frame_system::GenesisConfig::default().build_storage::<Runtime>().unwrap();
-
-		tokens::GenesisConfig::<Runtime> { balances: self.balances }
-			.assimilate_storage(&mut t)
+		let mut t = frame_system::GenesisConfig::default()
+			.build_storage::<Runtime>()
 			.unwrap();
+
+		tokens::GenesisConfig::<Runtime> {
+			balances: self.balances,
+		}
+		.assimilate_storage(&mut t)
+		.unwrap();
 
 		if self.treasury_genesis {
-			GenesisBuild::<Runtime>::assimilate_storage(
-				&pallet_treasury::GenesisConfig::default(),
-				&mut t,
-			)
-			.unwrap();
+			GenesisBuild::<Runtime>::assimilate_storage(&pallet_treasury::GenesisConfig::default(), &mut t).unwrap();
 
 			pallet_elections_phragmen::GenesisConfig::<Runtime> {
 				members: vec![(TREASURY_ACCOUNT, 10)],
@@ -289,6 +342,9 @@ impl ExtBuilder {
 			.assimilate_storage(&mut t)
 			.unwrap();
 		}
+
+		TrackCreatedAccounts::reset();
+		TrackKilledAccounts::reset();
 
 		let mut ext = sp_io::TestExternalities::new(t);
 		ext.execute_with(|| System::set_block_number(1));

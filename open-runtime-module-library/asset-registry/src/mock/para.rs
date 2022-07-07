@@ -4,13 +4,14 @@ use crate as orml_asset_registry;
 
 use codec::{Decode, Encode};
 use cumulus_primitives_core::{ChannelStatus, GetChannelInfo, ParaId};
+use frame_support::traits::{EnsureOrigin, EnsureOriginWithArg};
 use frame_support::{
-	construct_runtime, match_type, parameter_types,
+	construct_runtime, match_types, ord_parameter_types, parameter_types,
 	traits::{ConstU128, ConstU32, ConstU64, Everything, Nothing},
 	weights::{constants::WEIGHT_PER_SECOND, Weight},
 	PalletId,
 };
-use frame_system::EnsureRoot;
+use frame_system::{EnsureRoot, EnsureSignedBy};
 use orml_asset_registry::{AssetRegistryTrader, FixedRateAssetRegistryTrader};
 use orml_traits::{
 	location::{AbsoluteReserveProvider, RelativeReserveProvider},
@@ -96,6 +97,8 @@ impl orml_tokens::Config for Runtime {
 	type MaxReserves = ();
 	type MaxLocks = ConstU32<50>;
 	type DustRemovalWhitelist = Nothing;
+	type OnNewTokenAccount = ();
+	type OnKilledTokenAccount = ();
 }
 
 #[derive(scale_info::TypeInfo, Encode, Decode, Clone, Eq, PartialEq, Debug)]
@@ -103,11 +106,39 @@ pub struct CustomMetadata {
 	pub fee_per_second: u128,
 }
 
+const ADMIN_ASSET_TWO: AccountId = AccountId32::new([42u8; 32]);
+
+ord_parameter_types! {
+	pub const AdminAssetTwo: AccountId = ADMIN_ASSET_TWO;
+}
+
+pub struct AssetAuthority;
+impl EnsureOriginWithArg<Origin, Option<u32>> for AssetAuthority {
+	type Success = ();
+
+	fn try_origin(origin: Origin, asset_id: &Option<u32>) -> Result<Self::Success, Origin> {
+		match asset_id {
+			// We mock an edge case where the asset_id 2 requires a special origin check.
+			Some(2) => EnsureSignedBy::<AdminAssetTwo, AccountId32>::try_origin(origin.clone())
+				.map(|_| ())
+				.map_err(|_| origin),
+
+			// Any other `asset_id` defaults to EnsureRoot
+			_ => EnsureRoot::try_origin(origin),
+		}
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn successful_origin(_asset_id: &Option<u32>) -> Origin {
+		unimplemented!()
+	}
+}
+
 impl orml_asset_registry::Config for Runtime {
 	type Event = Event;
 	type Balance = Balance;
 	type AssetId = u32;
-	type AuthorityOrigin = EnsureRoot<AccountId>;
+	type AuthorityOrigin = AssetAuthority;
 	type CustomMetadata = CustomMetadata;
 	type AssetProcessor = orml_asset_registry::SequentialId<Runtime>;
 	type WeightInfo = ();
@@ -156,7 +187,7 @@ pub type XcmRouter = ParachainXcmRouter<ParachainInfo>;
 pub type Barrier = (TakeWeightCredit, AllowTopLevelPaidExecutionFrom<Everything>);
 
 parameter_types! {
-	pub TreasuryAccount: AccountId = PalletId(*b"Treasury").into_account();
+	pub TreasuryAccount: AccountId = PalletId(*b"Treasury").into_account_truncating();
 }
 
 pub struct ToTreasury;
@@ -270,7 +301,7 @@ parameter_types! {
 	pub const MaxAssetsForTransfer: usize = 3;
 }
 
-match_type! {
+match_types! {
 	pub type ParentOrParachains: impl Contains<MultiLocation> = {
 		MultiLocation { parents: 0, interior: X1(Junction::AccountId32 { .. }) } |
 		MultiLocation { parents: 1, interior: X1(Junction::AccountId32 { .. }) } |
@@ -283,11 +314,11 @@ match_type! {
 }
 
 parameter_type_with_key! {
-	pub ParachainMinFee: |location: MultiLocation| -> u128 {
+	pub ParachainMinFee: |location: MultiLocation| -> Option<u128> {
 		#[allow(clippy::match_ref_pats)] // false positive
 		match (location.parents, location.first_interior()) {
-			(1, Some(Parachain(2))) => 40,
-			_ => u128::MAX,
+			(1, Some(Parachain(2))) => Some(40),
+			_ => None,
 		}
 	};
 }

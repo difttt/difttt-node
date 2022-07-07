@@ -52,11 +52,7 @@ pub trait MultiCurrency<AccountId> {
 
 	/// A dry-run of `withdraw`. Returns `Ok` iff the account is able to make a
 	/// withdrawal of the given amount.
-	fn ensure_can_withdraw(
-		currency_id: Self::CurrencyId,
-		who: &AccountId,
-		amount: Self::Balance,
-	) -> DispatchResult;
+	fn ensure_can_withdraw(currency_id: Self::CurrencyId, who: &AccountId, amount: Self::Balance) -> DispatchResult;
 
 	// Public mutables
 
@@ -70,19 +66,11 @@ pub trait MultiCurrency<AccountId> {
 
 	/// Add `amount` to the balance of `who` under `currency_id` and increase
 	/// total issuance.
-	fn deposit(
-		currency_id: Self::CurrencyId,
-		who: &AccountId,
-		amount: Self::Balance,
-	) -> DispatchResult;
+	fn deposit(currency_id: Self::CurrencyId, who: &AccountId, amount: Self::Balance) -> DispatchResult;
 
 	/// Remove `amount` from the balance of `who` under `currency_id` and reduce
 	/// total issuance.
-	fn withdraw(
-		currency_id: Self::CurrencyId,
-		who: &AccountId,
-		amount: Self::Balance,
-	) -> DispatchResult;
+	fn withdraw(currency_id: Self::CurrencyId, who: &AccountId, amount: Self::Balance) -> DispatchResult;
 
 	/// Same result as `slash(currency_id, who, value)` (but without the
 	/// side-effects) assuming there are no balance changes in the meantime and
@@ -93,11 +81,7 @@ pub trait MultiCurrency<AccountId> {
 	///
 	/// As much funds up to `amount` will be deducted as possible. If this is
 	/// less than `amount`, then a non-zero excess value will be returned.
-	fn slash(
-		currency_id: Self::CurrencyId,
-		who: &AccountId,
-		amount: Self::Balance,
-	) -> Self::Balance;
+	fn slash(currency_id: Self::CurrencyId, who: &AccountId, amount: Self::Balance) -> Self::Balance;
 }
 
 /// Extended `MultiCurrency` with additional helper types and methods.
@@ -117,11 +101,7 @@ pub trait MultiCurrencyExtended<AccountId>: MultiCurrency<AccountId> {
 
 	/// Add or remove abs(`by_amount`) from the balance of `who` under
 	/// `currency_id`. If positive `by_amount`, do add, else do remove.
-	fn update_balance(
-		currency_id: Self::CurrencyId,
-		who: &AccountId,
-		by_amount: Self::Amount,
-	) -> DispatchResult;
+	fn update_balance(currency_id: Self::CurrencyId, who: &AccountId, by_amount: Self::Amount) -> DispatchResult;
 }
 
 /// A fungible multi-currency system whose accounts can have liquidity
@@ -160,11 +140,7 @@ pub trait MultiLockableCurrency<AccountId>: MultiCurrency<AccountId> {
 	) -> DispatchResult;
 
 	/// Remove an existing lock.
-	fn remove_lock(
-		lock_id: LockIdentifier,
-		currency_id: Self::CurrencyId,
-		who: &AccountId,
-	) -> DispatchResult;
+	fn remove_lock(lock_id: LockIdentifier, currency_id: Self::CurrencyId, who: &AccountId) -> DispatchResult;
 }
 
 /// A fungible multi-currency system where funds can be reserved from the user.
@@ -179,11 +155,7 @@ pub trait MultiReservableCurrency<AccountId>: MultiCurrency<AccountId> {
 	/// As much funds up to `value` will be deducted as possible. If the reserve
 	/// balance of `who` is less than `value`, then a non-zero excess will
 	/// be returned.
-	fn slash_reserved(
-		currency_id: Self::CurrencyId,
-		who: &AccountId,
-		value: Self::Balance,
-	) -> Self::Balance;
+	fn slash_reserved(currency_id: Self::CurrencyId, who: &AccountId, value: Self::Balance) -> Self::Balance;
 
 	/// The amount of the balance of a given account that is externally
 	/// reserved; this can still get slashed, but gets slashed last of all.
@@ -198,11 +170,7 @@ pub trait MultiReservableCurrency<AccountId>: MultiCurrency<AccountId> {
 	/// If the free balance is lower than `value`, then no funds will be moved
 	/// and an `Err` will be returned to notify of this. This is different
 	/// behavior than `unreserve`.
-	fn reserve(
-		currency_id: Self::CurrencyId,
-		who: &AccountId,
-		value: Self::Balance,
-	) -> DispatchResult;
+	fn reserve(currency_id: Self::CurrencyId, who: &AccountId, value: Self::Balance) -> DispatchResult;
 
 	/// Moves up to `value` from reserved balance to free balance. This function
 	/// cannot fail.
@@ -214,11 +182,7 @@ pub trait MultiReservableCurrency<AccountId>: MultiCurrency<AccountId> {
 	/// # NOTES
 	///
 	/// - This is different from `reserve`.
-	fn unreserve(
-		currency_id: Self::CurrencyId,
-		who: &AccountId,
-		value: Self::Balance,
-	) -> Self::Balance;
+	fn unreserve(currency_id: Self::CurrencyId, who: &AccountId, value: Self::Balance) -> Self::Balance;
 
 	/// Moves up to `value` from reserved balance of account `slashed` to
 	/// balance of account `beneficiary`. `beneficiary` must exist for this to
@@ -298,7 +262,8 @@ pub trait NamedMultiReservableCurrency<AccountId>: MultiReservableCurrency<Accou
 	/// # NOTES
 	///
 	/// - This is different from `reserve`.
-	/// - If the remaining reserved balance is less than `ExistentialDeposit`, it will
+	/// - If the remaining reserved balance is less than `ExistentialDeposit`,
+	///   it will
 	/// invoke `on_reserved_too_low` and could reap the account.
 	fn unreserve_named(
 		id: &Self::ReserveIdentifier,
@@ -340,13 +305,13 @@ pub trait NamedMultiReservableCurrency<AccountId>: MultiReservableCurrency<Accou
 			Ordering::Less => {
 				// we checked value > current
 				Self::reserve_named(id, currency_id, who, value - current)
-			},
+			}
 			Ordering::Equal => Ok(()),
 			Ordering::Greater => {
 				// we always have enough balance to unreserve here
 				Self::unreserve_named(id, currency_id, who, current - value);
 				Ok(())
-			},
+			}
 		}
 	}
 
@@ -382,7 +347,8 @@ pub trait NamedMultiReservableCurrency<AccountId>: MultiReservableCurrency<Accou
 	///
 	/// Is a no-op if:
 	/// - the value to be moved is zero; or
-	/// - the `slashed` id equal to `beneficiary` and the `status` is `Reserved`.
+	/// - the `slashed` id equal to `beneficiary` and the `status` is
+	///   `Reserved`.
 	fn repatriate_all_reserved_named(
 		id: &Self::ReserveIdentifier,
 		currency_id: Self::CurrencyId,
@@ -391,21 +357,14 @@ pub trait NamedMultiReservableCurrency<AccountId>: MultiReservableCurrency<Accou
 		status: BalanceStatus,
 	) -> DispatchResult {
 		let value = Self::reserved_balance_named(id, currency_id, slashed);
-		Self::repatriate_reserved_named(id, currency_id, slashed, beneficiary, value, status)
-			.map(|_| ())
+		Self::repatriate_reserved_named(id, currency_id, slashed, beneficiary, value, status).map(|_| ())
 	}
 }
 
 /// Abstraction over a fungible (single) currency system.
 pub trait BasicCurrency<AccountId> {
 	/// The balance of an account.
-	type Balance: AtLeast32BitUnsigned
-		+ FullCodec
-		+ Copy
-		+ MaybeSerializeDeserialize
-		+ Debug
-		+ Default
-		+ MaxEncodedLen;
+	type Balance: AtLeast32BitUnsigned + FullCodec + Copy + MaybeSerializeDeserialize + Debug + Default + MaxEncodedLen;
 
 	// Public immutables
 
@@ -490,11 +449,7 @@ pub trait BasicLockableCurrency<AccountId>: BasicCurrency<AccountId> {
 	/// while `set_lock` replaces the lock with the new parameters. As in,
 	/// `extend_lock` will set:
 	/// - maximum `amount`
-	fn extend_lock(
-		lock_id: LockIdentifier,
-		who: &AccountId,
-		amount: Self::Balance,
-	) -> DispatchResult;
+	fn extend_lock(lock_id: LockIdentifier, who: &AccountId, amount: Self::Balance) -> DispatchResult;
 
 	/// Remove an existing lock.
 	fn remove_lock(lock_id: LockIdentifier, who: &AccountId) -> DispatchResult;
@@ -559,20 +514,14 @@ pub trait BasicReservableCurrency<AccountId>: BasicCurrency<AccountId> {
 
 /// A fungible single currency system where funds can be reserved from the user
 /// with an identifier.
-pub trait NamedBasicReservableCurrency<AccountId, ReserveIdentifier>:
-	BasicReservableCurrency<AccountId>
-{
+pub trait NamedBasicReservableCurrency<AccountId, ReserveIdentifier>: BasicReservableCurrency<AccountId> {
 	/// Deducts up to `value` from reserved balance of `who`. This function
 	/// cannot fail.
 	///
 	/// As much funds up to `value` will be deducted as possible. If the reserve
 	/// balance of `who` is less than `value`, then a non-zero excess will be
 	/// returned.
-	fn slash_reserved_named(
-		id: &ReserveIdentifier,
-		who: &AccountId,
-		value: Self::Balance,
-	) -> Self::Balance;
+	fn slash_reserved_named(id: &ReserveIdentifier, who: &AccountId, value: Self::Balance) -> Self::Balance;
 
 	/// The amount of the balance of a given account that is externally
 	/// reserved; this can still get slashed, but gets slashed last of all.
@@ -594,11 +543,7 @@ pub trait NamedBasicReservableCurrency<AccountId, ReserveIdentifier>:
 	/// If the free balance is lower than `value`, then no funds will be moved
 	/// and an `Err` will be returned to notify of this. This is different
 	/// behavior than `unreserve`.
-	fn reserve_named(
-		id: &ReserveIdentifier,
-		who: &AccountId,
-		value: Self::Balance,
-	) -> DispatchResult;
+	fn reserve_named(id: &ReserveIdentifier, who: &AccountId, value: Self::Balance) -> DispatchResult;
 
 	/// Moves up to `value` from reserved balance to free balance. This function
 	/// cannot fail.
@@ -610,13 +555,10 @@ pub trait NamedBasicReservableCurrency<AccountId, ReserveIdentifier>:
 	/// # NOTES
 	///
 	/// - This is different from `reserve`.
-	/// - If the remaining reserved balance is less than `ExistentialDeposit`, it will
+	/// - If the remaining reserved balance is less than `ExistentialDeposit`,
+	///   it will
 	/// invoke `on_reserved_too_low` and could reap the account.
-	fn unreserve_named(
-		id: &ReserveIdentifier,
-		who: &AccountId,
-		value: Self::Balance,
-	) -> Self::Balance;
+	fn unreserve_named(id: &ReserveIdentifier, who: &AccountId, value: Self::Balance) -> Self::Balance;
 
 	/// Moves up to `value` from reserved balance of account `slashed` to
 	/// balance of account `beneficiary`. `beneficiary` must exist for this to
@@ -639,23 +581,19 @@ pub trait NamedBasicReservableCurrency<AccountId, ReserveIdentifier>:
 	/// This will reserve extra amount of current reserved balance is less than
 	/// `value`. And unreserve if current reserved balance is greater than
 	/// `value`.
-	fn ensure_reserved_named(
-		id: &ReserveIdentifier,
-		who: &AccountId,
-		value: Self::Balance,
-	) -> DispatchResult {
+	fn ensure_reserved_named(id: &ReserveIdentifier, who: &AccountId, value: Self::Balance) -> DispatchResult {
 		let current = Self::reserved_balance_named(id, who);
 		match current.cmp(&value) {
 			Ordering::Less => {
 				// we checked value > current
 				Self::reserve_named(id, who, value - current)
-			},
+			}
 			Ordering::Equal => Ok(()),
 			Ordering::Greater => {
 				// we always have enough balance to unreserve here
 				Self::unreserve_named(id, who, current - value);
 				Ok(())
-			},
+			}
 		}
 	}
 
@@ -683,7 +621,8 @@ pub trait NamedBasicReservableCurrency<AccountId, ReserveIdentifier>:
 	///
 	/// Is a no-op if:
 	/// - the value to be moved is zero; or
-	/// - the `slashed` id equal to `beneficiary` and the `status` is `Reserved`.
+	/// - the `slashed` id equal to `beneficiary` and the `status` is
+	///   `Reserved`.
 	fn repatriate_all_reserved_named(
 		id: &ReserveIdentifier,
 		slashed: &AccountId,

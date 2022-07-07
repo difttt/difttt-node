@@ -25,8 +25,7 @@ impl<K: Decode + Sized, V: Decode + Sized, Hasher: ReversibleStorageHasher> Iter
 
 	fn next(&mut self) -> Option<(K, V)> {
 		loop {
-			let maybe_next = sp_io::storage::next_key(&self.previous_key)
-				.filter(|n| n.starts_with(&self.prefix));
+			let maybe_next = sp_io::storage::next_key(&self.previous_key).filter(|n| n.starts_with(&self.prefix));
 			break match maybe_next {
 				Some(next) => {
 					self.previous_key = next;
@@ -35,18 +34,17 @@ impl<K: Decode + Sized, V: Decode + Sized, Hasher: ReversibleStorageHasher> Iter
 							if self.drain {
 								unhashed::kill(&self.previous_key)
 							}
-							let mut key_material =
-								Hasher::reverse(&self.previous_key[self.prefix.len()..]);
+							let mut key_material = Hasher::reverse(&self.previous_key[self.prefix.len()..]);
 							match K::decode(&mut key_material) {
 								Ok(key) => Some((key, value)),
 								Err(_) => continue,
 							}
-						},
+						}
 						None => continue,
 					}
-				},
+				}
 				None => None,
-			}
+			};
 		}
 	}
 }
@@ -58,16 +56,14 @@ pub struct StorageMapIteratorShim<K, V, H> {
 	pub finished: bool,
 }
 
-impl<K: Decode + Sized, V: Decode + Sized, H: ReversibleStorageHasher> Iterator
-	for StorageMapIteratorShim<K, V, H>
-{
+impl<K: Decode + Sized, V: Decode + Sized, H: ReversibleStorageHasher> Iterator for StorageMapIteratorShim<K, V, H> {
 	type Item = <StorageMapIterator<K, V, H> as Iterator>::Item;
 
 	fn next(&mut self) -> Option<Self::Item> {
 		// check accumulated iteration count
 		if let Some(remain_iterator_count) = self.remain_iterator_count {
 			if remain_iterator_count == 0 {
-				return None
+				return None;
 			} else {
 				self.remain_iterator_count = Some(remain_iterator_count - 1);
 			}
@@ -105,10 +101,15 @@ where
 	/// Enumerate all elements in the map.
 	fn iter(max_iterations: Option<u32>, start_key: Option<Vec<u8>>) -> Self::Iterator {
 		let prefix = G::prefix_hash();
-		let previous_key =
-			start_key.filter(|k| k.starts_with(&prefix)).unwrap_or_else(|| prefix.clone());
-		let storage_map_iterator =
-			StorageMapIterator { prefix, previous_key, drain: false, _phantom: Default::default() };
+		let previous_key = start_key
+			.filter(|k| k.starts_with(&prefix))
+			.unwrap_or_else(|| prefix.clone());
+		let storage_map_iterator = StorageMapIterator {
+			prefix,
+			previous_key,
+			drain: false,
+			_phantom: Default::default(),
+		};
 
 		StorageMapIteratorShim {
 			storage_map_iterator,
@@ -121,10 +122,15 @@ where
 	fn drain(max_iterations: Option<u32>, start_key: Option<Vec<u8>>) -> Self::Iterator {
 		let prefix = G::prefix_hash();
 
-		let previous_key =
-			start_key.filter(|k| k.starts_with(&prefix)).unwrap_or_else(|| prefix.clone());
-		let storage_map_iterator =
-			StorageMapIterator { prefix, previous_key, drain: true, _phantom: Default::default() };
+		let previous_key = start_key
+			.filter(|k| k.starts_with(&prefix))
+			.unwrap_or_else(|| prefix.clone());
+		let storage_map_iterator = StorageMapIterator {
+			prefix,
+			previous_key,
+			drain: true,
+			_phantom: Default::default(),
+		};
 
 		StorageMapIteratorShim {
 			storage_map_iterator,
@@ -153,19 +159,16 @@ impl<T> Iterator for MapIterator<T> {
 
 	fn next(&mut self) -> Option<Self::Item> {
 		loop {
-			let maybe_next = sp_io::storage::next_key(&self.previous_key)
-				.filter(|n| n.starts_with(&self.prefix));
+			let maybe_next = sp_io::storage::next_key(&self.previous_key).filter(|n| n.starts_with(&self.prefix));
 			break match maybe_next {
 				Some(next) => {
 					self.previous_key = next;
 					let raw_value = match unhashed::get_raw(&self.previous_key) {
 						Some(raw_value) => raw_value,
 						None => {
-							frame_support::print(
-								"ERROR: next_key returned a key with no value in MapIterator",
-							);
-							continue
-						},
+							frame_support::print("ERROR: next_key returned a key with no value in MapIterator");
+							continue;
+						}
 					};
 					if self.drain {
 						unhashed::kill(&self.previous_key)
@@ -174,17 +177,15 @@ impl<T> Iterator for MapIterator<T> {
 					let item = match (self.closure)(raw_key_without_prefix, &raw_value[..]) {
 						Ok(item) => item,
 						Err(_e) => {
-							frame_support::print(
-								"ERROR: (key, value) failed to decode in MapIterator",
-							);
-							continue
-						},
+							frame_support::print("ERROR: (key, value) failed to decode in MapIterator");
+							continue;
+						}
 					};
 
 					Some(item)
-				},
+				}
 				None => None,
-			}
+			};
 		}
 	}
 }
@@ -203,7 +204,7 @@ impl<T> Iterator for MapIteratorShim<T> {
 		// check accumulated iteration count
 		if let Some(remain_iterator_count) = self.remain_iterator_count {
 			if remain_iterator_count == 0 {
-				return None
+				return None;
 			} else {
 				self.remain_iterator_count = Some(remain_iterator_count - 1);
 			}
@@ -270,8 +271,9 @@ where
 		start_key: Option<Vec<u8>>,
 	) -> Self::PrefixIterator {
 		let prefix = G::storage_double_map_final_key1(k1);
-		let previous_key =
-			start_key.filter(|k| k.starts_with(&prefix)).unwrap_or_else(|| prefix.clone());
+		let previous_key = start_key
+			.filter(|k| k.starts_with(&prefix))
+			.unwrap_or_else(|| prefix.clone());
 
 		let map_iterator = MapIterator {
 			prefix,
@@ -283,7 +285,11 @@ where
 			},
 		};
 
-		MapIteratorShim { map_iterator, remain_iterator_count: max_iterations, finished: false }
+		MapIteratorShim {
+			map_iterator,
+			remain_iterator_count: max_iterations,
+			finished: false,
+		}
 	}
 
 	fn drain_prefix(
@@ -298,8 +304,9 @@ where
 
 	fn iter(max_iterations: Option<u32>, start_key: Option<Vec<u8>>) -> Self::Iterator {
 		let prefix = G::prefix_hash();
-		let previous_key =
-			start_key.filter(|k| k.starts_with(&prefix)).unwrap_or_else(|| prefix.clone());
+		let previous_key = start_key
+			.filter(|k| k.starts_with(&prefix))
+			.unwrap_or_else(|| prefix.clone());
 
 		let map_iterator = MapIterator {
 			prefix,
@@ -314,7 +321,11 @@ where
 			},
 		};
 
-		MapIteratorShim { map_iterator, remain_iterator_count: max_iterations, finished: false }
+		MapIteratorShim {
+			map_iterator,
+			remain_iterator_count: max_iterations,
+			finished: false,
+		}
 	}
 
 	fn drain(max_iterations: Option<u32>, start_key: Option<Vec<u8>>) -> Self::Iterator {

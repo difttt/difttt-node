@@ -55,6 +55,7 @@ fn transfer_should_work() {
 				Error::<Runtime>::ExistentialDeposit,
 			);
 			assert_ok!(Tokens::transfer(Some(ALICE).into(), CHARLIE, DOT, 2));
+			assert_eq!(TrackCreatedAccounts::accounts(), vec![(CHARLIE, DOT)]);
 
 			// imply AllowDeath
 			assert!(Accounts::<Runtime>::contains_key(ALICE, DOT));
@@ -131,6 +132,7 @@ fn transfer_all_allow_death_should_work() {
 			assert!(Accounts::<Runtime>::contains_key(ALICE, DOT));
 			assert_eq!(Tokens::free_balance(DOT, &ALICE), 100);
 			assert_ok!(Tokens::transfer_all(Some(ALICE).into(), CHARLIE, DOT, false));
+			assert_eq!(TrackCreatedAccounts::accounts(), vec![(CHARLIE, DOT)]);
 			System::assert_last_event(Event::Tokens(crate::Event::Transfer {
 				currency_id: DOT,
 				from: ALICE,
@@ -139,6 +141,7 @@ fn transfer_all_allow_death_should_work() {
 			}));
 			assert!(!Accounts::<Runtime>::contains_key(ALICE, DOT));
 			assert_eq!(Tokens::free_balance(DOT, &ALICE), 0);
+			assert_eq!(TrackKilledAccounts::accounts(), vec![(ALICE, DOT)]);
 
 			assert_ok!(Tokens::set_lock(ID_1, DOT, &BOB, 50));
 			assert_eq!(Tokens::accounts(&BOB, DOT).frozen, 50);
@@ -176,6 +179,7 @@ fn force_transfer_should_work() {
 				amount: 100,
 			}));
 			assert!(!Accounts::<Runtime>::contains_key(ALICE, DOT));
+			assert_eq!(TrackKilledAccounts::accounts(), vec![(ALICE, DOT)]);
 			assert_eq!(Tokens::free_balance(DOT, &ALICE), 0);
 			assert_eq!(Tokens::free_balance(DOT, &BOB), 200);
 		});
@@ -272,7 +276,11 @@ fn deposit_consequence_should_work() {
 				&CHARLIE,
 				DOT,
 				0,
-				&AccountData { free: 1, reserved: 0, frozen: 0 }
+				&AccountData {
+					free: 1,
+					reserved: 0,
+					frozen: 0
+				}
 			)
 			.into_result(),
 			Ok(())
@@ -284,7 +292,11 @@ fn deposit_consequence_should_work() {
 				&CHARLIE,
 				DOT,
 				Balance::max_value(),
-				&AccountData { free: 1, reserved: 0, frozen: 0 }
+				&AccountData {
+					free: 1,
+					reserved: 0,
+					frozen: 0
+				}
 			)
 			.into_result(),
 			Err(ArithmeticError::Overflow.into())
@@ -296,7 +308,11 @@ fn deposit_consequence_should_work() {
 				&CHARLIE,
 				DOT,
 				1,
-				&AccountData { free: Balance::max_value(), reserved: 0, frozen: 0 }
+				&AccountData {
+					free: Balance::max_value(),
+					reserved: 0,
+					frozen: 0
+				}
 			)
 			.into_result(),
 			Err(ArithmeticError::Overflow.into())
@@ -308,7 +324,11 @@ fn deposit_consequence_should_work() {
 				&CHARLIE,
 				DOT,
 				1,
-				&AccountData { free: 0, reserved: 0, frozen: 0 }
+				&AccountData {
+					free: 0,
+					reserved: 0,
+					frozen: 0
+				}
 			)
 			.into_result(),
 			Err(TokenError::BelowMinimum.into())
@@ -319,7 +339,11 @@ fn deposit_consequence_should_work() {
 				&CHARLIE,
 				DOT,
 				1,
-				&AccountData { free: 1, reserved: 0, frozen: 0 }
+				&AccountData {
+					free: 1,
+					reserved: 0,
+					frozen: 0
+				}
 			)
 			.into_result(),
 			Ok(())
@@ -335,7 +359,11 @@ fn withdraw_consequence_should_work() {
 				&ALICE,
 				DOT,
 				0,
-				&AccountData { free: 1, reserved: 0, frozen: 0 }
+				&AccountData {
+					free: 1,
+					reserved: 0,
+					frozen: 0
+				}
 			)
 			.into_result(),
 			Ok(Zero::zero())
@@ -349,7 +377,11 @@ fn withdraw_consequence_should_work() {
 				&ALICE,
 				DOT,
 				3,
-				&AccountData { free: 1, reserved: 0, frozen: 0 }
+				&AccountData {
+					free: 1,
+					reserved: 0,
+					frozen: 0
+				}
 			)
 			.into_result(),
 			Err(ArithmeticError::Underflow.into())
@@ -361,7 +393,11 @@ fn withdraw_consequence_should_work() {
 				&ALICE,
 				DOT,
 				2,
-				&AccountData { free: 1, reserved: 0, frozen: 0 }
+				&AccountData {
+					free: 1,
+					reserved: 0,
+					frozen: 0
+				}
 			)
 			.into_result(),
 			Err(TokenError::NoFunds.into())
@@ -377,7 +413,11 @@ fn withdraw_consequence_should_work() {
 				&ALICE,
 				DOT,
 				1,
-				&AccountData { free: 2, reserved: 0, frozen: 0 }
+				&AccountData {
+					free: 2,
+					reserved: 0,
+					frozen: 0
+				}
 			)
 			.into_result(),
 			Err(TokenError::WouldDie.into())
@@ -391,7 +431,11 @@ fn withdraw_consequence_should_work() {
 				&ALICE,
 				DOT,
 				1,
-				&AccountData { free: 2, reserved: 0, frozen: 0 }
+				&AccountData {
+					free: 2,
+					reserved: 0,
+					frozen: 0
+				}
 			)
 			.into_result(),
 			Ok(1)
@@ -403,7 +447,11 @@ fn withdraw_consequence_should_work() {
 				&ALICE,
 				DOT,
 				2,
-				&AccountData { free: 1, reserved: 1, frozen: 0 }
+				&AccountData {
+					free: 1,
+					reserved: 1,
+					frozen: 0
+				}
 			)
 			.into_result(),
 			Err(TokenError::NoFunds.into())
@@ -415,7 +463,11 @@ fn withdraw_consequence_should_work() {
 				&ALICE,
 				DOT,
 				2,
-				&AccountData { free: 2, reserved: 0, frozen: 2 }
+				&AccountData {
+					free: 2,
+					reserved: 0,
+					frozen: 2
+				}
 			)
 			.into_result(),
 			Err(TokenError::Frozen.into())
@@ -627,7 +679,13 @@ fn do_transfer_report_keep_alive_error_when_ed_is_not_zero() {
 			assert_eq!(Tokens::free_balance(DOT, &DAVE), 100);
 			assert_eq!(Tokens::free_balance(DOT, &BOB), 0);
 			assert!(Accounts::<Runtime>::contains_key(DAVE, DOT));
-			assert_ok!(Tokens::do_transfer(DOT, &DAVE, &BOB, 99, ExistenceRequirement::KeepAlive));
+			assert_ok!(Tokens::do_transfer(
+				DOT,
+				&DAVE,
+				&BOB,
+				99,
+				ExistenceRequirement::KeepAlive
+			));
 			assert_eq!(Tokens::free_balance(DOT, &DAVE), 1);
 			assert_eq!(Tokens::free_balance(DOT, &BOB), 99);
 			assert!(Accounts::<Runtime>::contains_key(DAVE, DOT));
@@ -643,7 +701,13 @@ fn do_transfer_will_not_report_keep_alive_error_when_ed_is_zero() {
 			assert!(Accounts::<Runtime>::contains_key(ALICE, ETH));
 			assert_eq!(Tokens::free_balance(ETH, &ALICE), 100);
 			assert_eq!(Tokens::free_balance(ETH, &BOB), 0);
-			assert_ok!(Tokens::do_transfer(ETH, &ALICE, &BOB, 99, ExistenceRequirement::KeepAlive));
+			assert_ok!(Tokens::do_transfer(
+				ETH,
+				&ALICE,
+				&BOB,
+				99,
+				ExistenceRequirement::KeepAlive
+			));
 			assert!(Accounts::<Runtime>::contains_key(ALICE, ETH));
 			assert_eq!(Tokens::free_balance(ETH, &ALICE), 1);
 			assert_eq!(Tokens::free_balance(ETH, &BOB), 99);
@@ -651,7 +715,13 @@ fn do_transfer_will_not_report_keep_alive_error_when_ed_is_zero() {
 			// account that total is zero will not be reaped because ED is zero
 			assert!(Accounts::<Runtime>::contains_key(DAVE, ETH));
 			assert_eq!(Tokens::free_balance(ETH, &DAVE), 100);
-			assert_ok!(Tokens::do_transfer(ETH, &DAVE, &BOB, 100, ExistenceRequirement::KeepAlive));
+			assert_ok!(Tokens::do_transfer(
+				ETH,
+				&DAVE,
+				&BOB,
+				100,
+				ExistenceRequirement::KeepAlive
+			));
 			assert!(Accounts::<Runtime>::contains_key(DAVE, ETH));
 			assert_eq!(Tokens::free_balance(ETH, &DAVE), 0);
 			assert_eq!(Tokens::free_balance(ETH, &BOB), 199);
@@ -698,7 +768,13 @@ fn do_transfer_report_existential_deposit_error_when_ed_is_not_zero() {
 			// if receiver is in dust removal whitelist, will not be reaped.
 			assert!(!Accounts::<Runtime>::contains_key(DAVE, DOT));
 			assert_eq!(Tokens::free_balance(DOT, &DAVE), 0);
-			assert_ok!(Tokens::do_transfer(DOT, &ALICE, &DAVE, 1, ExistenceRequirement::KeepAlive));
+			assert_ok!(Tokens::do_transfer(
+				DOT,
+				&ALICE,
+				&DAVE,
+				1,
+				ExistenceRequirement::KeepAlive
+			));
 			assert!(Accounts::<Runtime>::contains_key(DAVE, DOT));
 			assert_eq!(Tokens::free_balance(DOT, &DAVE), 1);
 		});
@@ -729,7 +805,13 @@ fn do_withdraw_should_work() {
 			// change issuance
 			assert_eq!(Tokens::free_balance(DOT, &ALICE), 100);
 			assert_eq!(Tokens::total_issuance(DOT), 100);
-			assert_ok!(Tokens::do_withdraw(DOT, &ALICE, 10, ExistenceRequirement::KeepAlive, true));
+			assert_ok!(Tokens::do_withdraw(
+				DOT,
+				&ALICE,
+				10,
+				ExistenceRequirement::KeepAlive,
+				true
+			));
 			assert_eq!(Tokens::free_balance(DOT, &ALICE), 90);
 			assert_eq!(Tokens::total_issuance(DOT), 90);
 
@@ -787,7 +869,13 @@ fn do_withdraw_report_keep_alive_error_when_ed_is_not_zero() {
 			assert!(Accounts::<Runtime>::contains_key(DAVE, DOT));
 			assert_eq!(Tokens::free_balance(DOT, &DAVE), 100);
 			assert_eq!(Tokens::total_issuance(DOT), 200);
-			assert_ok!(Tokens::do_withdraw(DOT, &DAVE, 99, ExistenceRequirement::KeepAlive, true));
+			assert_ok!(Tokens::do_withdraw(
+				DOT,
+				&DAVE,
+				99,
+				ExistenceRequirement::KeepAlive,
+				true
+			));
 			assert!(Accounts::<Runtime>::contains_key(DAVE, DOT));
 			assert_eq!(Tokens::free_balance(DOT, &DAVE), 1);
 			assert_eq!(Tokens::total_issuance(DOT), 101);
@@ -823,7 +911,13 @@ fn do_withdraw_will_not_report_keep_alive_error_when_ed_is_zero() {
 
 			assert!(Accounts::<Runtime>::contains_key(DAVE, ETH));
 			assert_eq!(Tokens::free_balance(ETH, &DAVE), 100);
-			assert_ok!(Tokens::do_withdraw(ETH, &DAVE, 100, ExistenceRequirement::KeepAlive, true));
+			assert_ok!(Tokens::do_withdraw(
+				ETH,
+				&DAVE,
+				100,
+				ExistenceRequirement::KeepAlive,
+				true
+			));
 			assert!(Accounts::<Runtime>::contains_key(DAVE, ETH));
 			assert_eq!(Tokens::free_balance(ETH, &DAVE), 0);
 			assert_eq!(Tokens::total_issuance(ETH), 0);
@@ -1054,4 +1148,22 @@ fn exceeding_max_reserves_should_fail() {
 				Error::<Runtime>::TooManyReserves
 			);
 		});
+}
+
+#[test]
+fn lifecycle_callbacks_are_activated() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_ok!(Tokens::set_balance(RawOrigin::Root.into(), ALICE, DOT, 200, 0));
+		assert_eq!(TrackCreatedAccounts::accounts(), vec![(ALICE, DOT)]);
+
+		assert_ok!(Tokens::set_balance(RawOrigin::Root.into(), ALICE, BTC, 200, 0));
+		assert_eq!(TrackCreatedAccounts::accounts(), vec![(ALICE, DOT), (ALICE, BTC)]);
+
+		assert_ok!(Tokens::transfer_all(Some(ALICE).into(), CHARLIE, BTC, false));
+		assert_eq!(
+			TrackCreatedAccounts::accounts(),
+			vec![(ALICE, DOT), (ALICE, BTC), (CHARLIE, BTC)]
+		);
+		assert_eq!(TrackKilledAccounts::accounts(), vec![(ALICE, BTC)]);
+	})
 }

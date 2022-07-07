@@ -100,17 +100,11 @@ mod tests {
 	#[test]
 	fn parent_as_reserve_chain() {
 		assert_eq!(
-			AbsoluteReserveProvider::reserve(&concrete_fungible(MultiLocation::new(
-				1,
-				X1(GENERAL_INDEX)
-			))),
+			AbsoluteReserveProvider::reserve(&concrete_fungible(MultiLocation::new(1, X1(GENERAL_INDEX)))),
 			Some(MultiLocation::parent())
 		);
 		assert_eq!(
-			RelativeReserveProvider::reserve(&concrete_fungible(MultiLocation::new(
-				1,
-				X1(GENERAL_INDEX)
-			))),
+			RelativeReserveProvider::reserve(&concrete_fungible(MultiLocation::new(1, X1(GENERAL_INDEX)))),
 			Some(MultiLocation::parent())
 		);
 	}
@@ -118,17 +112,11 @@ mod tests {
 	#[test]
 	fn sibling_parachain_as_reserve_chain() {
 		assert_eq!(
-			AbsoluteReserveProvider::reserve(&concrete_fungible(MultiLocation::new(
-				1,
-				X2(PARACHAIN, GENERAL_INDEX)
-			))),
+			AbsoluteReserveProvider::reserve(&concrete_fungible(MultiLocation::new(1, X2(PARACHAIN, GENERAL_INDEX)))),
 			Some(MultiLocation::new(1, X1(PARACHAIN)))
 		);
 		assert_eq!(
-			RelativeReserveProvider::reserve(&concrete_fungible(MultiLocation::new(
-				1,
-				X2(PARACHAIN, GENERAL_INDEX)
-			))),
+			RelativeReserveProvider::reserve(&concrete_fungible(MultiLocation::new(1, X2(PARACHAIN, GENERAL_INDEX)))),
 			Some(MultiLocation::new(1, X1(PARACHAIN)))
 		);
 	}
@@ -136,17 +124,11 @@ mod tests {
 	#[test]
 	fn child_parachain_as_reserve_chain() {
 		assert_eq!(
-			AbsoluteReserveProvider::reserve(&concrete_fungible(MultiLocation::new(
-				0,
-				X2(PARACHAIN, GENERAL_INDEX)
-			))),
+			AbsoluteReserveProvider::reserve(&concrete_fungible(MultiLocation::new(0, X2(PARACHAIN, GENERAL_INDEX)))),
 			Some(PARACHAIN.into())
 		);
 		assert_eq!(
-			RelativeReserveProvider::reserve(&concrete_fungible(MultiLocation::new(
-				0,
-				X2(PARACHAIN, GENERAL_INDEX)
-			))),
+			RelativeReserveProvider::reserve(&concrete_fungible(MultiLocation::new(0, X2(PARACHAIN, GENERAL_INDEX)))),
 			Some(PARACHAIN.into())
 		);
 	}
@@ -154,17 +136,11 @@ mod tests {
 	#[test]
 	fn no_reserve_chain_for_absolute_self_for_relative() {
 		assert_eq!(
-			AbsoluteReserveProvider::reserve(&concrete_fungible(MultiLocation::new(
-				0,
-				X1(GeneralKey("DOT".into()))
-			))),
+			AbsoluteReserveProvider::reserve(&concrete_fungible(MultiLocation::new(0, X1(GeneralKey("DOT".into()))))),
 			None
 		);
 		assert_eq!(
-			RelativeReserveProvider::reserve(&concrete_fungible(MultiLocation::new(
-				0,
-				X1(GeneralKey("DOT".into()))
-			))),
+			RelativeReserveProvider::reserve(&concrete_fungible(MultiLocation::new(0, X1(GeneralKey("DOT".into()))))),
 			Some(MultiLocation::here())
 		);
 	}
