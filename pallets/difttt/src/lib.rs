@@ -9,6 +9,7 @@ pub use pallet::*;
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 use sp_std::cmp::{Eq, PartialEq};
+use module-dex::*;
 
 #[cfg(test)]
 mod mock;
@@ -1714,6 +1715,12 @@ pub mod pallet {
 		}
 		fn get_tx_block_limit() -> u64 {
 			TxBlockLimit::<T>::get().unwrap_or(3)
+		}
+	}
+
+	impl<T:Config> BuyTokenInterface<BalanceOf<T>> for Pallet<T> {
+		fn buyToken(sell_token_name:CurrencyId,buy_token_name:CurrencyId,amount:BalanceOf) {
+
 		}
 	}
 }

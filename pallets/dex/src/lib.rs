@@ -49,7 +49,9 @@ use support::{DEXIncentives, DEXManager, Erc20InfoMapping, ExchangeRate, Ratio, 
 
 mod mock;
 mod tests;
+mod traits;
 pub mod weights;
+
 
 pub use module::*;
 pub use weights::WeightInfo;
@@ -1556,3 +1558,4 @@ impl<T: Config> DEXManager<T::AccountId, Balance, CurrencyId> for Pallet<T> {
 		)
 	}
 }
+
