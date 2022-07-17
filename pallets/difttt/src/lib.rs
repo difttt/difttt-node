@@ -1721,6 +1721,15 @@ pub mod pallet {
 	impl<T:Config> BuyTokenInterface<BalanceOf<T>> for Pallet<T> {
 		fn buyToken(sell_token_name:CurrencyId,buy_token_name:CurrencyId,amount:BalanceOf) {
 
+			//换算机制
+			//let price_sell = getPrice(sell_token_name)
+			//let price_buy = getPrice(buy_token_name)
+			//amount_buy = (amount * price_sell) / price_buy
+
+			//更新账户余额
+			// sell_token_name.update(account.balance - amount);
+			// buy_token_name.update(account.balance + amount_buy);
+
 		}
 	}
 }
