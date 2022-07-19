@@ -56,9 +56,7 @@ impl Encode for Properties {
 impl Decode for Properties {
 	fn decode<I: codec::Input>(input: &mut I) -> sp_std::result::Result<Self, codec::Error> {
 		let field = u8::decode(input)?;
-		Ok(Self(
-			<BitFlags<ClassProperty>>::from_bits(field as u8).map_err(|_| "invalid value")?,
-		))
+		Ok(Self(<BitFlags<ClassProperty>>::from_bits(field as u8).map_err(|_| "invalid value")?))
 	}
 }
 

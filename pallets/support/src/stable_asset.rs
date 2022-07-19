@@ -33,8 +33,15 @@ pub struct RebasedStableAsset<StableAsset, RebaseTokenAmountConvertor, ErrorConv
 	sp_std::marker::PhantomData<(StableAsset, RebaseTokenAmountConvertor, ErrorConvertor)>,
 );
 
-impl<AccountId, Balance, BlockNumber, CurrencyId, StableAsset, RebaseTokenAmountConvertor, ErrorConvertor> StableAssetT
-	for RebasedStableAsset<StableAsset, RebaseTokenAmountConvertor, ErrorConvertor>
+impl<
+		AccountId,
+		Balance,
+		BlockNumber,
+		CurrencyId,
+		StableAsset,
+		RebaseTokenAmountConvertor,
+		ErrorConvertor,
+	> StableAssetT for RebasedStableAsset<StableAsset, RebaseTokenAmountConvertor, ErrorConvertor>
 where
 	StableAsset: StableAssetT<
 		AssetId = CurrencyId,
@@ -195,7 +202,8 @@ where
 			.assets
 			.get(i as usize)
 			.ok_or_else(|| ErrorConvertor::convert(RebasedStableAssetError::InvalidTokenIndex))?;
-		let rebased_min_redeem_amount = RebaseTokenAmountConvertor::convert_balance(min_redeem_amount, *currency_id);
+		let rebased_min_redeem_amount =
+			RebaseTokenAmountConvertor::convert_balance(min_redeem_amount, *currency_id);
 
 		StableAsset::redeem_single(who, pool_id, amount, i, rebased_min_redeem_amount, asset_length)
 	}
@@ -371,8 +379,14 @@ where
 			RebaseTokenAmountConvertor::convert_balance(dx_bal, *input_currency_id),
 		)
 		.map(|mut swap_result| {
-			swap_result.dx = RebaseTokenAmountConvertor::convert_balance_back(swap_result.dx, *input_currency_id);
-			swap_result.dy = RebaseTokenAmountConvertor::convert_balance_back(swap_result.dy, *output_currency_id);
+			swap_result.dx = RebaseTokenAmountConvertor::convert_balance_back(
+				swap_result.dx,
+				*input_currency_id,
+			);
+			swap_result.dy = RebaseTokenAmountConvertor::convert_balance_back(
+				swap_result.dy,
+				*output_currency_id,
+			);
 			swap_result
 		})
 	}
@@ -394,8 +408,14 @@ where
 			RebaseTokenAmountConvertor::convert_balance(dy_bal, *output_currency_id),
 		)
 		.map(|mut swap_result| {
-			swap_result.dx = RebaseTokenAmountConvertor::convert_balance_back(swap_result.dx, *input_currency_id);
-			swap_result.dy = RebaseTokenAmountConvertor::convert_balance_back(swap_result.dy, *output_currency_id);
+			swap_result.dx = RebaseTokenAmountConvertor::convert_balance_back(
+				swap_result.dx,
+				*input_currency_id,
+			);
+			swap_result.dy = RebaseTokenAmountConvertor::convert_balance_back(
+				swap_result.dy,
+				*output_currency_id,
+			);
 			swap_result
 		})
 	}

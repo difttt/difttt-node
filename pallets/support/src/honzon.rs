@@ -37,12 +37,15 @@ pub trait RiskManager<AccountId, CurrencyId, Balance, DebitBalance> {
 		check_required_ratio: bool,
 	) -> DispatchResult;
 
-	fn check_debit_cap(currency_id: CurrencyId, total_debit_balance: DebitBalance) -> DispatchResult;
+	fn check_debit_cap(
+		currency_id: CurrencyId,
+		total_debit_balance: DebitBalance,
+	) -> DispatchResult;
 }
 
 #[cfg(feature = "std")]
-impl<AccountId, CurrencyId, Balance: Default, DebitBalance> RiskManager<AccountId, CurrencyId, Balance, DebitBalance>
-	for ()
+impl<AccountId, CurrencyId, Balance: Default, DebitBalance>
+	RiskManager<AccountId, CurrencyId, Balance, DebitBalance> for ()
 {
 	fn get_debit_value(_currency_id: CurrencyId, _debit_balance: DebitBalance) -> Balance {
 		Default::default()
@@ -57,7 +60,10 @@ impl<AccountId, CurrencyId, Balance: Default, DebitBalance> RiskManager<AccountI
 		Ok(())
 	}
 
-	fn check_debit_cap(_currency_id: CurrencyId, _total_debit_balance: DebitBalance) -> DispatchResult {
+	fn check_debit_cap(
+		_currency_id: CurrencyId,
+		_total_debit_balance: DebitBalance,
+	) -> DispatchResult {
 		Ok(())
 	}
 }
@@ -116,10 +122,18 @@ pub trait CDPTreasury<AccountId> {
 	fn withdraw_surplus(to: &AccountId, surplus: Self::Balance) -> DispatchResult;
 
 	/// deposit collateral assets to cdp treasury by `who`
-	fn deposit_collateral(from: &AccountId, currency_id: Self::CurrencyId, amount: Self::Balance) -> DispatchResult;
+	fn deposit_collateral(
+		from: &AccountId,
+		currency_id: Self::CurrencyId,
+		amount: Self::Balance,
+	) -> DispatchResult;
 
 	/// withdraw collateral assets of cdp treasury to `who`
-	fn withdraw_collateral(to: &AccountId, currency_id: Self::CurrencyId, amount: Self::Balance) -> DispatchResult;
+	fn withdraw_collateral(
+		to: &AccountId,
+		currency_id: Self::CurrencyId,
+		amount: Self::Balance,
+	) -> DispatchResult;
 }
 
 pub trait CDPTreasuryExtended<AccountId>: CDPTreasury<AccountId> {
@@ -159,7 +173,11 @@ pub trait HonzonManager<AccountId, CurrencyId, Amount, Balance> {
 		debit_adjustment: Amount,
 	) -> DispatchResult;
 	/// Close CDP loan using DEX
-	fn close_loan_by_dex(who: AccountId, currency_id: CurrencyId, max_collateral_amount: Balance) -> DispatchResult;
+	fn close_loan_by_dex(
+		who: AccountId,
+		currency_id: CurrencyId,
+		max_collateral_amount: Balance,
+	) -> DispatchResult;
 	/// Get open CDP corresponding to an account and collateral `CurrencyId`
 	fn get_position(who: &AccountId, currency_id: CurrencyId) -> Position;
 	/// Get liquidation ratio for collateral `CurrencyId`

@@ -116,14 +116,18 @@ pub struct EthereumTransactionMessage {
 /// 0 - 0x0000000000000000000000000000000000000400
 /// Acala precompiles
 /// 0x0000000000000000000000000000000000000400 - 0x0000000000000000000000000000000000000800
-pub const PRECOMPILE_ADDRESS_START: EvmAddress = H160(hex!("0000000000000000000000000000000000000400"));
+pub const PRECOMPILE_ADDRESS_START: EvmAddress =
+	H160(hex!("0000000000000000000000000000000000000400"));
 /// Predeployed system contracts (except Mirrored ERC20)
 /// 0x0000000000000000000000000000000000000800 - 0x0000000000000000000000000000000000001000
-pub const PREDEPLOY_ADDRESS_START: EvmAddress = H160(hex!("0000000000000000000000000000000000000800"));
-pub const MIRRORED_TOKENS_ADDRESS_START: EvmAddress = H160(hex!("0000000000000000000100000000000000000000"));
+pub const PREDEPLOY_ADDRESS_START: EvmAddress =
+	H160(hex!("0000000000000000000000000000000000000800"));
+pub const MIRRORED_TOKENS_ADDRESS_START: EvmAddress =
+	H160(hex!("0000000000000000000100000000000000000000"));
 pub const MIRRORED_NFT_ADDRESS_START: u64 = 0x2000000;
 /// ERC20 Holding Account used for transfer ERC20 token
-pub const ERC20_HOLDING_ACCOUNT: EvmAddress = H160(hex_literal::hex!("000000000000000000ff00000000000000000000"));
+pub const ERC20_HOLDING_ACCOUNT: EvmAddress =
+	H160(hex_literal::hex!("000000000000000000ff00000000000000000000"));
 /// System contract address prefix
 pub const SYSTEM_CONTRACT_ADDRESS_PREFIX: [u8; 9] = [0u8; 9];
 
@@ -180,31 +184,35 @@ impl TryFrom<CurrencyId> for EvmAddress {
 			CurrencyId::Token(token) => {
 				address[H160_POSITION_CURRENCY_ID_TYPE] = CurrencyIdType::Token.into();
 				address[H160_POSITION_TOKEN] = token.into();
-			}
+			},
 			CurrencyId::DexShare(left, right) => {
 				let left_field: u32 = left.into();
 				let right_field: u32 = right.into();
 				address[H160_POSITION_CURRENCY_ID_TYPE] = CurrencyIdType::DexShare.into();
 				address[H160_POSITION_DEXSHARE_LEFT_TYPE] = Into::<DexShareType>::into(left).into();
-				address[H160_POSITION_DEXSHARE_LEFT_FIELD].copy_from_slice(&left_field.to_be_bytes());
-				address[H160_POSITION_DEXSHARE_RIGHT_TYPE] = Into::<DexShareType>::into(right).into();
-				address[H160_POSITION_DEXSHARE_RIGHT_FIELD].copy_from_slice(&right_field.to_be_bytes());
-			}
+				address[H160_POSITION_DEXSHARE_LEFT_FIELD]
+					.copy_from_slice(&left_field.to_be_bytes());
+				address[H160_POSITION_DEXSHARE_RIGHT_TYPE] =
+					Into::<DexShareType>::into(right).into();
+				address[H160_POSITION_DEXSHARE_RIGHT_FIELD]
+					.copy_from_slice(&right_field.to_be_bytes());
+			},
 			CurrencyId::Erc20(erc20) => {
 				address[..].copy_from_slice(erc20.as_bytes());
-			}
+			},
 			CurrencyId::StableAssetPoolToken(stable_asset_id) => {
 				address[H160_POSITION_CURRENCY_ID_TYPE] = CurrencyIdType::StableAsset.into();
 				address[H160_POSITION_STABLE_ASSET].copy_from_slice(&stable_asset_id.to_be_bytes());
-			}
+			},
 			CurrencyId::LiquidCrowdloan(lease) => {
 				address[H160_POSITION_CURRENCY_ID_TYPE] = CurrencyIdType::LiquidCrowdloan.into();
 				address[H160_POSITION_LIQUID_CROADLOAN].copy_from_slice(&lease.to_be_bytes());
-			}
+			},
 			CurrencyId::ForeignAsset(foreign_asset_id) => {
 				address[H160_POSITION_CURRENCY_ID_TYPE] = CurrencyIdType::ForeignAsset.into();
-				address[H160_POSITION_FOREIGN_ASSET].copy_from_slice(&foreign_asset_id.to_be_bytes());
-			}
+				address[H160_POSITION_FOREIGN_ASSET]
+					.copy_from_slice(&foreign_asset_id.to_be_bytes());
+			},
 		};
 
 		Ok(EvmAddress::from_slice(&address))
@@ -221,17 +229,19 @@ mod convert {
 	/// Convert decimal from native(KAR/ACA 12) to EVM(18).
 	pub fn convert_decimals_to_evm<B: Zero + Saturating + From<u32>>(b: B) -> B {
 		if b.is_zero() {
-			return b;
+			return b
 		}
 		b.saturating_mul(DECIMALS_VALUE.into())
 	}
 
 	/// Convert decimal from EVM(18) to native(KAR/ACA 12).
-	pub fn convert_decimals_from_evm<B: Zero + Saturating + CheckedDiv + PartialEq + Copy + From<u32>>(
+	pub fn convert_decimals_from_evm<
+		B: Zero + Saturating + CheckedDiv + PartialEq + Copy + From<u32>,
+	>(
 		b: B,
 	) -> Option<B> {
 		if b.is_zero() {
-			return Some(b);
+			return Some(b)
 		}
 		let res = b
 			.checked_div(&Into::<B>::into(DECIMALS_VALUE))

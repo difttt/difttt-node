@@ -17,8 +17,8 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use codec::{Decode, Encode};
-use primitives::currency::AssetIds;
 use primitives::{
+	currency::AssetIds,
 	evm::{CallInfo, EvmAddress},
 	CurrencyId,
 };
@@ -134,7 +134,8 @@ pub trait EVMManager<AccountId, Balance> {
 	/// Query the constants `PublicationFee` value from evm module.
 	fn query_publication_fee() -> Balance;
 	/// Transfer the maintainer of the contract address.
-	fn transfer_maintainer(from: AccountId, contract: H160, new_maintainer: H160) -> DispatchResult;
+	fn transfer_maintainer(from: AccountId, contract: H160, new_maintainer: H160)
+		-> DispatchResult;
 	/// Publish contract
 	fn publish_contract_precompile(who: AccountId, contract: H160) -> DispatchResult;
 	/// Query the developer status of an account

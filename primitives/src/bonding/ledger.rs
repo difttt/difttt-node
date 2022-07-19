@@ -35,7 +35,9 @@ pub struct UnlockChunk<Moment> {
 }
 
 /// The ledger of a (bonded) account.
-#[derive(PartialEqNoBound, EqNoBound, CloneNoBound, Encode, Decode, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(
+	PartialEqNoBound, EqNoBound, CloneNoBound, Encode, Decode, RuntimeDebug, MaxEncodedLen, TypeInfo,
+)]
 #[scale_info(skip_type_params(MaxUnlockingChunks, MinBond))]
 pub struct BondingLedger<Moment, MaxUnlockingChunks, MinBond>
 where
@@ -99,14 +101,11 @@ where
 				if let Some(last) = unlocking.last_mut() {
 					if last.unlock_at == unlock_at {
 						last.value = last.value.saturating_add(amount);
-						return;
+						return
 					}
 				}
 				// or make a new one
-				unlocking.push(UnlockChunk {
-					value: amount,
-					unlock_at,
-				});
+				unlocking.push(UnlockChunk { value: amount, unlock_at });
 			})
 			.ok_or(Error::MaxUnlockChunksExceeded)?;
 		Ok((self, amount))
@@ -160,7 +159,7 @@ where
 					}
 
 					if unlocking_balance >= value {
-						break;
+						break
 					}
 				}
 			})
@@ -177,13 +176,14 @@ where
 
 	fn check_min_bond(&self) -> Result<(), Error> {
 		if self.active > 0 && self.active < MinBond::get() {
-			return Err(Error::BelowMinBondThreshold);
+			return Err(Error::BelowMinBondThreshold)
 		}
 		Ok(())
 	}
 }
 
-impl<Moment, MaxUnlockingChunks, MinBond> Default for BondingLedger<Moment, MaxUnlockingChunks, MinBond>
+impl<Moment, MaxUnlockingChunks, MinBond> Default
+	for BondingLedger<Moment, MaxUnlockingChunks, MinBond>
 where
 	Moment: Ord + Eq + Copy,
 	MaxUnlockingChunks: Get<u32>,
@@ -252,10 +252,7 @@ mod tests {
 			Ledger {
 				total: 100,
 				active: 80,
-				unlocking: bounded_vec![UnlockChunk {
-					value: 20,
-					unlock_at: 2,
-				}],
+				unlocking: bounded_vec![UnlockChunk { value: 20, unlock_at: 2 }],
 				_phantom: Default::default(),
 			}
 		);
@@ -267,10 +264,7 @@ mod tests {
 			Ledger {
 				total: 100,
 				active: 70,
-				unlocking: bounded_vec![UnlockChunk {
-					value: 30,
-					unlock_at: 2,
-				}],
+				unlocking: bounded_vec![UnlockChunk { value: 30, unlock_at: 2 }],
 				_phantom: Default::default(),
 			}
 		);
@@ -283,10 +277,7 @@ mod tests {
 				total: 100,
 				active: 65,
 				unlocking: bounded_vec![
-					UnlockChunk {
-						value: 30,
-						unlock_at: 2,
-					},
+					UnlockChunk { value: 30, unlock_at: 2 },
 					UnlockChunk { value: 5, unlock_at: 4 }
 				],
 				_phantom: Default::default(),
@@ -300,10 +291,7 @@ mod tests {
 				total: 100,
 				active: 65,
 				unlocking: bounded_vec![
-					UnlockChunk {
-						value: 30,
-						unlock_at: 2,
-					},
+					UnlockChunk { value: 30, unlock_at: 2 },
 					UnlockChunk { value: 5, unlock_at: 4 }
 				],
 				_phantom: Default::default(),
@@ -330,10 +318,7 @@ mod tests {
 				active: 0,
 				unlocking: bounded_vec![
 					UnlockChunk { value: 5, unlock_at: 4 },
-					UnlockChunk {
-						value: 65,
-						unlock_at: 6,
-					}
+					UnlockChunk { value: 65, unlock_at: 6 }
 				],
 				_phantom: Default::default(),
 			}
@@ -345,10 +330,7 @@ mod tests {
 			Ledger {
 				total: 65,
 				active: 0,
-				unlocking: bounded_vec![UnlockChunk {
-					value: 65,
-					unlock_at: 6,
-				}],
+				unlocking: bounded_vec![UnlockChunk { value: 65, unlock_at: 6 }],
 				_phantom: Default::default(),
 			}
 		);
@@ -356,12 +338,7 @@ mod tests {
 		let ledger = ledger.consolidate_unlocked(6);
 		assert_eq!(
 			ledger,
-			Ledger {
-				total: 0,
-				active: 0,
-				unlocking: bounded_vec![],
-				_phantom: Default::default(),
-			}
+			Ledger { total: 0, active: 0, unlocking: bounded_vec![], _phantom: Default::default() }
 		);
 		assert!(ledger.is_empty());
 	}
@@ -399,14 +376,8 @@ mod tests {
 				total: 100,
 				active: 20,
 				unlocking: bounded_vec![
-					UnlockChunk {
-						value: 50,
-						unlock_at: 2
-					},
-					UnlockChunk {
-						value: 30,
-						unlock_at: 3
-					}
+					UnlockChunk { value: 50, unlock_at: 2 },
+					UnlockChunk { value: 30, unlock_at: 3 }
 				],
 				_phantom: Default::default(),
 			}
@@ -419,10 +390,7 @@ mod tests {
 			Ledger {
 				total: 100,
 				active: 60,
-				unlocking: bounded_vec![UnlockChunk {
-					value: 40,
-					unlock_at: 2
-				}],
+				unlocking: bounded_vec![UnlockChunk { value: 40, unlock_at: 2 }],
 				_phantom: Default::default(),
 			}
 		);

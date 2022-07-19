@@ -27,6 +27,7 @@ pub mod nft;
 pub mod signature;
 pub mod task;
 pub mod testing;
+pub mod transfer_protect;
 pub mod unchecked_extrinsic;
 pub use testing::*;
 
@@ -128,15 +129,17 @@ pub enum DataProviderId {
 	Acala = 1,
 }
 
-#[derive(Encode, Eq, PartialEq, Copy, Clone, RuntimeDebug, PartialOrd, Ord, TypeInfo, MaxEncodedLen)]
+#[derive(
+	Encode, Eq, PartialEq, Copy, Clone, RuntimeDebug, PartialOrd, Ord, TypeInfo, MaxEncodedLen,
+)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct TradingPair(CurrencyId, CurrencyId);
 
 impl TradingPair {
 	pub fn from_currency_ids(currency_id_a: CurrencyId, currency_id_b: CurrencyId) -> Option<Self> {
-		if currency_id_a.is_trading_pair_currency_id()
-			&& currency_id_b.is_trading_pair_currency_id()
-			&& currency_id_a != currency_id_b
+		if currency_id_a.is_trading_pair_currency_id() &&
+			currency_id_b.is_trading_pair_currency_id() &&
+			currency_id_a != currency_id_b
 		{
 			if currency_id_a > currency_id_b {
 				Some(TradingPair(currency_id_b, currency_id_a))
@@ -165,11 +168,14 @@ impl TradingPair {
 impl Decode for TradingPair {
 	fn decode<I: codec::Input>(input: &mut I) -> sp_std::result::Result<Self, codec::Error> {
 		let (first, second): (CurrencyId, CurrencyId) = Decode::decode(input)?;
-		TradingPair::from_currency_ids(first, second).ok_or_else(|| codec::Error::from("invalid currency id"))
+		TradingPair::from_currency_ids(first, second)
+			.ok_or_else(|| codec::Error::from("invalid currency id"))
 	}
 }
 
-#[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, Default, MaxEncodedLen, TypeInfo)]
+#[derive(
+	Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, Default, MaxEncodedLen, TypeInfo,
+)]
 pub struct Position {
 	/// The amount of collateral.
 	pub collateral: Balance,
@@ -177,7 +183,19 @@ pub struct Position {
 	pub debit: Balance,
 }
 
-#[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, PartialOrd, Ord, MaxEncodedLen, TypeInfo)]
+#[derive(
+	Encode,
+	Decode,
+	Eq,
+	PartialEq,
+	Copy,
+	Clone,
+	RuntimeDebug,
+	PartialOrd,
+	Ord,
+	MaxEncodedLen,
+	TypeInfo,
+)]
 #[repr(u8)]
 pub enum ReserveIdentifier {
 	CollatorSelection,

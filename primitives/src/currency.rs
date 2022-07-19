@@ -270,7 +270,19 @@ pub type ForeignAssetId = u16;
 pub type Erc20Id = u32;
 pub type Lease = BlockNumber;
 
-#[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, PartialOrd, Ord, TypeInfo, MaxEncodedLen)]
+#[derive(
+	Encode,
+	Decode,
+	Eq,
+	PartialEq,
+	Copy,
+	Clone,
+	RuntimeDebug,
+	PartialOrd,
+	Ord,
+	TypeInfo,
+	MaxEncodedLen,
+)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
 pub enum DexShare {
@@ -281,7 +293,19 @@ pub enum DexShare {
 	StableAssetPoolToken(StableAssetPoolId),
 }
 
-#[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, PartialOrd, Ord, TypeInfo, MaxEncodedLen)]
+#[derive(
+	Encode,
+	Decode,
+	Eq,
+	PartialEq,
+	Copy,
+	Clone,
+	RuntimeDebug,
+	PartialOrd,
+	Ord,
+	TypeInfo,
+	MaxEncodedLen,
+)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
 pub enum CurrencyId {
@@ -317,11 +341,11 @@ impl CurrencyId {
 	pub fn is_trading_pair_currency_id(&self) -> bool {
 		matches!(
 			self,
-			CurrencyId::Token(_)
-				| CurrencyId::Erc20(_)
-				| CurrencyId::LiquidCrowdloan(_)
-				| CurrencyId::ForeignAsset(_)
-				| CurrencyId::StableAssetPoolToken(_)
+			CurrencyId::Token(_) |
+				CurrencyId::Erc20(_) |
+				CurrencyId::LiquidCrowdloan(_) |
+				CurrencyId::ForeignAsset(_) |
+				CurrencyId::StableAssetPoolToken(_)
 		)
 	}
 
@@ -331,7 +355,7 @@ impl CurrencyId {
 				let currency_id_0: CurrencyId = (*dex_share_0).into();
 				let currency_id_1: CurrencyId = (*dex_share_1).into();
 				Some((currency_id_0, currency_id_1))
-			}
+			},
 			_ => None,
 		}
 	}
@@ -342,9 +366,8 @@ impl CurrencyId {
 			CurrencyId::Erc20(address) => DexShare::Erc20(address),
 			CurrencyId::LiquidCrowdloan(lease) => DexShare::LiquidCrowdloan(lease),
 			CurrencyId::ForeignAsset(foreign_asset_id) => DexShare::ForeignAsset(foreign_asset_id),
-			CurrencyId::StableAssetPoolToken(stable_asset_pool_id) => {
-				DexShare::StableAssetPoolToken(stable_asset_pool_id)
-			}
+			CurrencyId::StableAssetPoolToken(stable_asset_pool_id) =>
+				DexShare::StableAssetPoolToken(stable_asset_pool_id),
 			// Unsupported
 			CurrencyId::DexShare(..) => return None,
 		};
@@ -353,9 +376,8 @@ impl CurrencyId {
 			CurrencyId::Erc20(address) => DexShare::Erc20(address),
 			CurrencyId::LiquidCrowdloan(lease) => DexShare::LiquidCrowdloan(lease),
 			CurrencyId::ForeignAsset(foreign_asset_id) => DexShare::ForeignAsset(foreign_asset_id),
-			CurrencyId::StableAssetPoolToken(stable_asset_pool_id) => {
-				DexShare::StableAssetPoolToken(stable_asset_pool_id)
-			}
+			CurrencyId::StableAssetPoolToken(stable_asset_pool_id) =>
+				DexShare::StableAssetPoolToken(stable_asset_pool_id),
 			// Unsupported
 			CurrencyId::DexShare(..) => return None,
 		};
@@ -369,7 +391,7 @@ impl From<DexShare> for u32 {
 		match val {
 			DexShare::Token(token) => {
 				bytes[3] = token.into();
-			}
+			},
 			DexShare::Erc20(address) => {
 				// Use first 4 non-zero bytes as u32 to the mapping between u32 and evm address.
 				// Take the first 4 non-zero bytes, if it is less than 4, add 0 to the left.
@@ -377,16 +399,16 @@ impl From<DexShare> for u32 {
 				let leading_zeros = address.as_bytes().iter().take_while(is_zero).count();
 				let index = if leading_zeros > 16 { 16 } else { leading_zeros };
 				bytes[..].copy_from_slice(&address[index..index + 4][..]);
-			}
+			},
 			DexShare::LiquidCrowdloan(lease) => {
 				bytes[..].copy_from_slice(&lease.to_be_bytes());
-			}
+			},
 			DexShare::ForeignAsset(foreign_asset_id) => {
 				bytes[2..].copy_from_slice(&foreign_asset_id.to_be_bytes());
-			}
+			},
 			DexShare::StableAssetPoolToken(stable_asset_pool_id) => {
 				bytes[..].copy_from_slice(&stable_asset_pool_id.to_be_bytes());
-			}
+			},
 		}
 		u32::from_be_bytes(bytes)
 	}
@@ -399,16 +421,26 @@ impl Into<CurrencyId> for DexShare {
 			DexShare::Erc20(address) => CurrencyId::Erc20(address),
 			DexShare::LiquidCrowdloan(lease) => CurrencyId::LiquidCrowdloan(lease),
 			DexShare::ForeignAsset(foreign_asset_id) => CurrencyId::ForeignAsset(foreign_asset_id),
-			DexShare::StableAssetPoolToken(stable_asset_pool_id) => {
-				CurrencyId::StableAssetPoolToken(stable_asset_pool_id)
-			}
+			DexShare::StableAssetPoolToken(stable_asset_pool_id) =>
+				CurrencyId::StableAssetPoolToken(stable_asset_pool_id),
 		}
 	}
 }
 
 /// H160 CurrencyId Type enum
 #[derive(
-	Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, PartialOrd, Ord, TryFromPrimitive, IntoPrimitive, TypeInfo,
+	Encode,
+	Decode,
+	Eq,
+	PartialEq,
+	Copy,
+	Clone,
+	RuntimeDebug,
+	PartialOrd,
+	Ord,
+	TryFromPrimitive,
+	IntoPrimitive,
+	TypeInfo,
 )]
 #[repr(u8)]
 pub enum CurrencyIdType {
@@ -420,7 +452,18 @@ pub enum CurrencyIdType {
 }
 
 #[derive(
-	Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, PartialOrd, Ord, TryFromPrimitive, IntoPrimitive, TypeInfo,
+	Encode,
+	Decode,
+	Eq,
+	PartialEq,
+	Copy,
+	Clone,
+	RuntimeDebug,
+	PartialOrd,
+	Ord,
+	TryFromPrimitive,
+	IntoPrimitive,
+	TypeInfo,
 )]
 #[repr(u8)]
 pub enum DexShareType {

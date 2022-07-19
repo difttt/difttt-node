@@ -25,8 +25,10 @@ use frame_support::{
 };
 use sp_std::prelude::*;
 
-use super::error::Error;
-use super::ledger::{BondingLedger, UnlockChunk};
+use super::{
+	error::Error,
+	ledger::{BondingLedger, UnlockChunk},
+};
 use crate::Balance;
 
 pub type BondingLedgerOf<T> = BondingLedger<
@@ -53,7 +55,11 @@ where
 	type Moment: Ord + Eq + Copy;
 	type AccountId: Parameter + Member;
 
-	type Ledger: StorageMap<Self::AccountId, BondingLedgerOf<Self>, Query = Option<BondingLedgerOf<Self>>>;
+	type Ledger: StorageMap<
+		Self::AccountId,
+		BondingLedgerOf<Self>,
+		Query = Option<BondingLedgerOf<Self>>,
+	>;
 
 	fn available_balance(who: &Self::AccountId, ledger: &BondingLedgerOf<Self>) -> Balance;
 	fn apply_ledger(who: &Self::AccountId, ledger: &BondingLedgerOf<Self>) -> DispatchResult;
@@ -66,7 +72,7 @@ where
 		let bond_amount = amount.min(available);
 
 		if bond_amount == 0 {
-			return Ok(None);
+			return Ok(None)
 		}
 
 		let old_active = ledger.active();
@@ -76,51 +82,46 @@ where
 		Self::Ledger::insert(&who, &ledger);
 		Self::apply_ledger(who, &ledger)?;
 
-		Ok(Some(BondChange {
-			old: old_active,
-			new: ledger.active(),
-			change: bond_amount,
-		}))
+		Ok(Some(BondChange { old: old_active, new: ledger.active(), change: bond_amount }))
 	}
 
-	fn unbond(who: &Self::AccountId, amount: Balance, at: Self::Moment) -> Result<Option<BondChange>, DispatchError> {
+	fn unbond(
+		who: &Self::AccountId,
+		amount: Balance,
+		at: Self::Moment,
+	) -> Result<Option<BondChange>, DispatchError> {
 		let ledger = Self::Ledger::get(who).ok_or_else(|| Self::convert_error(Error::NotBonded))?;
 		let old_active = ledger.active();
 
 		let (ledger, unbond_amount) = ledger.unbond(amount, at).map_err(Self::convert_error)?;
 
 		if unbond_amount == 0 {
-			return Ok(None);
+			return Ok(None)
 		}
 
 		Self::Ledger::insert(&who, &ledger);
 		Self::apply_ledger(who, &ledger)?;
 
-		Ok(Some(BondChange {
-			old: old_active,
-			new: ledger.active(),
-			change: unbond_amount,
-		}))
+		Ok(Some(BondChange { old: old_active, new: ledger.active(), change: unbond_amount }))
 	}
 
-	fn unbond_instant(who: &Self::AccountId, amount: Balance) -> Result<Option<BondChange>, DispatchError> {
+	fn unbond_instant(
+		who: &Self::AccountId,
+		amount: Balance,
+	) -> Result<Option<BondChange>, DispatchError> {
 		let ledger = Self::Ledger::get(who).ok_or_else(|| Self::convert_error(Error::NotBonded))?;
 		let old_active = ledger.active();
 
 		let (ledger, unbond_amount) = ledger.unbond_instant(amount).map_err(Self::convert_error)?;
 
 		if unbond_amount == 0 {
-			return Ok(None);
+			return Ok(None)
 		}
 
 		Self::Ledger::insert(&who, &ledger);
 		Self::apply_ledger(who, &ledger)?;
 
-		Ok(Some(BondChange {
-			old: old_active,
-			new: ledger.active(),
-			change: unbond_amount,
-		}))
+		Ok(Some(BondChange { old: old_active, new: ledger.active(), change: unbond_amount }))
 	}
 
 	fn rebond(who: &Self::AccountId, amount: Balance) -> Result<Option<BondChange>, DispatchError> {
@@ -130,20 +131,19 @@ where
 		let (ledger, rebond_amount) = ledger.rebond(amount).map_err(Self::convert_error)?;
 
 		if rebond_amount == 0 {
-			return Ok(None);
+			return Ok(None)
 		}
 
 		Self::Ledger::insert(&who, &ledger);
 		Self::apply_ledger(who, &ledger)?;
 
-		Ok(Some(BondChange {
-			old: old_active,
-			new: ledger.active(),
-			change: rebond_amount,
-		}))
+		Ok(Some(BondChange { old: old_active, new: ledger.active(), change: rebond_amount }))
 	}
 
-	fn withdraw_unbonded(who: &Self::AccountId, now: Self::Moment) -> Result<Option<BondChange>, DispatchError> {
+	fn withdraw_unbonded(
+		who: &Self::AccountId,
+		now: Self::Moment,
+	) -> Result<Option<BondChange>, DispatchError> {
 		let ledger = Self::Ledger::get(who).ok_or_else(|| Self::convert_error(Error::NotBonded))?;
 		let old_total = ledger.total();
 
@@ -154,7 +154,7 @@ where
 		let diff = old_total.saturating_sub(new_total);
 
 		if diff == 0 {
-			return Ok(None);
+			return Ok(None)
 		}
 
 		if new_total == 0 {
@@ -165,10 +165,6 @@ where
 
 		Self::apply_ledger(who, &ledger)?;
 
-		Ok(Some(BondChange {
-			old: old_total,
-			new: new_total,
-			change: diff,
-		}))
+		Ok(Some(BondChange { old: old_total, new: new_total, change: diff }))
 	}
 }

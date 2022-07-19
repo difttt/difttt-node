@@ -20,7 +20,7 @@ frame-system = {  git = "https://github.com/paritytech/substrate", default-featu
 orml-traits = { path = "../traits", version = "0.4.1-dev", default-features = false }
 
 # Local Dependencies
-pallet-difttt = { version = "4.0.0-dev", default-features = false, path = "../../pallets/difttt" }
+primitives = { package = "acala-primitives", path = "../../primitives", default-features = false }
 
 [dev-dependencies]
 sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.24" }
@@ -39,7 +39,6 @@ std = [
 	"frame-support/std",
 	"frame-system/std",
 	"orml-traits/std",
-	"pallet-difttt/std",
 ]
 runtime-benchmarks = [
 	"frame-support/runtime-benchmarks",

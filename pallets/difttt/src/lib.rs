@@ -85,11 +85,6 @@ pub struct Recipe {
 	oak_hash: BoundedVec<u8, ConstU32<128>>,
 }
 
-pub trait TransferProtectInterface<Balance> {
-	fn get_amout_limit() -> Balance;
-	fn get_tx_block_limit() -> u64;
-}
-
 #[frame_support::pallet]
 pub mod pallet {
 	pub use crate::weights::WeightInfo;
@@ -121,7 +116,7 @@ pub mod pallet {
 
 	use sp_std::{collections::btree_map::BTreeMap, prelude::*, str};
 
-	use crate::TransferProtectInterface;
+	use primitives::transfer_protect::TransferProtectInterface;
 	// use pallet_dex::traits::BuyTokenInterface;
 	use sp_runtime::{
 		traits::{AtLeast32BitUnsigned, Bounded, CheckedAdd, MaybeSerializeDeserialize, Zero},

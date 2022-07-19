@@ -20,8 +20,7 @@ use frame_support::weights::Weight;
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
-use sp_runtime::DispatchResult;
-use sp_runtime::RuntimeDebug;
+use sp_runtime::{DispatchResult, RuntimeDebug};
 
 #[derive(Clone, Eq, PartialEq, Encode, Decode, RuntimeDebug, TypeInfo)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]

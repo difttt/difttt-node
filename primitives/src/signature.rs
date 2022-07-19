@@ -104,19 +104,19 @@ impl Verify for AcalaMultiSignature {
 	type Signer = MultiSigner;
 	fn verify<L: Lazy<[u8]>>(&self, mut msg: L, signer: &AccountId32) -> bool {
 		match (self, signer) {
-			(Self::Ed25519(ref sig), who) => {
-				ed25519::Public::from_slice(who.as_ref()).map_or(false, |signer| sig.verify(msg, &signer))
-			}
-			(Self::Sr25519(ref sig), who) => {
-				sr25519::Public::from_slice(who.as_ref()).map_or(false, |signer| sig.verify(msg, &signer))
-			}
+			(Self::Ed25519(ref sig), who) => ed25519::Public::from_slice(who.as_ref())
+				.map_or(false, |signer| sig.verify(msg, &signer)),
+			(Self::Sr25519(ref sig), who) => sr25519::Public::from_slice(who.as_ref())
+				.map_or(false, |signer| sig.verify(msg, &signer)),
 			(Self::Ecdsa(ref sig), who) => {
 				let m = sp_io::hashing::blake2_256(msg.get());
 				match sp_io::crypto::secp256k1_ecdsa_recover_compressed(sig.as_ref(), &m) {
-					Ok(pubkey) => &sp_io::hashing::blake2_256(pubkey.as_ref()) == <dyn AsRef<[u8; 32]>>::as_ref(who),
+					Ok(pubkey) =>
+						&sp_io::hashing::blake2_256(pubkey.as_ref()) ==
+							<dyn AsRef<[u8; 32]>>::as_ref(who),
 					_ => false,
 				}
-			}
+			},
 			_ => false, // Arbitrary message verification is not supported
 		}
 	}

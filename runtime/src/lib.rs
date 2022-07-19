@@ -384,7 +384,6 @@ impl pallet_dex::Config for Runtime {
 	type OnLiquidityPoolUpdated = ();
 }
 
-
 impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime
 where
 	Call: From<LocalCall>,

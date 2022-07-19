@@ -105,11 +105,19 @@ impl orml_tokens::Config for Runtime {
 
 pub struct MockDEXIncentives;
 impl DEXIncentives<AccountId, CurrencyId, Balance> for MockDEXIncentives {
-	fn do_deposit_dex_share(who: &AccountId, lp_currency_id: CurrencyId, amount: Balance) -> DispatchResult {
+	fn do_deposit_dex_share(
+		who: &AccountId,
+		lp_currency_id: CurrencyId,
+		amount: Balance,
+	) -> DispatchResult {
 		Tokens::reserve(lp_currency_id, who, amount)
 	}
 
-	fn do_withdraw_dex_share(who: &AccountId, lp_currency_id: CurrencyId, amount: Balance) -> DispatchResult {
+	fn do_withdraw_dex_share(
+		who: &AccountId,
+		lp_currency_id: CurrencyId,
+		amount: Balance,
+	) -> DispatchResult {
 		let _ = Tokens::unreserve(lp_currency_id, who, amount);
 		Ok(())
 	}
@@ -180,7 +188,8 @@ construct_runtime!(
 
 pub struct ExtBuilder {
 	balances: Vec<(AccountId, CurrencyId, Balance)>,
-	initial_listing_trading_pairs: Vec<(TradingPair, (Balance, Balance), (Balance, Balance), BlockNumber)>,
+	initial_listing_trading_pairs:
+		Vec<(TradingPair, (Balance, Balance), (Balance, Balance), BlockNumber)>,
 	initial_enabled_trading_pairs: Vec<TradingPair>,
 	initial_added_liquidity_pools: Vec<(AccountId, Vec<(TradingPair, (Balance, Balance))>)>,
 }
@@ -207,7 +216,8 @@ impl Default for ExtBuilder {
 
 impl ExtBuilder {
 	pub fn initialize_enabled_trading_pairs(mut self) -> Self {
-		self.initial_enabled_trading_pairs = vec![AUSDDOTPair::get(), AUSDBTCPair::get(), DOTBTCPair::get()];
+		self.initial_enabled_trading_pairs =
+			vec![AUSDDOTPair::get(), AUSDBTCPair::get(), DOTBTCPair::get()];
 		self
 	}
 
@@ -224,15 +234,11 @@ impl ExtBuilder {
 	}
 
 	pub fn build(self) -> sp_io::TestExternalities {
-		let mut t = frame_system::GenesisConfig::default()
-			.build_storage::<Runtime>()
-			.unwrap();
+		let mut t = frame_system::GenesisConfig::default().build_storage::<Runtime>().unwrap();
 
-		orml_tokens::GenesisConfig::<Runtime> {
-			balances: self.balances,
-		}
-		.assimilate_storage(&mut t)
-		.unwrap();
+		orml_tokens::GenesisConfig::<Runtime> { balances: self.balances }
+			.assimilate_storage(&mut t)
+			.unwrap();
 
 		dex::GenesisConfig::<Runtime> {
 			initial_listing_trading_pairs: self.initial_listing_trading_pairs,

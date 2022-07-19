@@ -20,6 +20,4 @@ mod controller;
 mod error;
 mod ledger;
 
-pub use self::controller::*;
-pub use self::error::*;
-pub use self::ledger::*;
+pub use self::{controller::*, error::*, ledger::*};

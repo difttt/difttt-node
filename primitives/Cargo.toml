@@ -23,10 +23,10 @@ sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v
 
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.24", default-features = false }
 
-orml-traits = { path = "../orml/traits", default-features = false }
+orml-traits = { path = "../open-runtime-module-library/traits", default-features = false }
 
-module-evm-utility = { path = "../modules/evm-utility", default-features = false }
-module-evm-utility-macro = { path = "../modules/evm-utility/macro" }
+module-evm-utility = { path = "../pallets/evm-utility", default-features = false }
+module-evm-utility-macro = { path = "../pallets/evm-utility/macro" }
 nutsfinance-stable-asset = { version = "0.1.0", default-features = false, path = "../ecosystem-modules/stable-asset/lib/stable-asset", package = "nutsfinance-stable-asset" }
 
 [dev-dependencies]

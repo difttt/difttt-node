@@ -25,7 +25,8 @@ use codec::FullCodec;
 use frame_support::pallet_prelude::{DispatchClass, Pays, Weight};
 use primitives::{task::TaskResult, CurrencyId, Multiplier, ReserveIdentifier};
 use sp_runtime::{
-	traits::CheckedDiv, transaction_validity::TransactionValidityError, DispatchError, DispatchResult, FixedU128,
+	traits::CheckedDiv, transaction_validity::TransactionValidityError, DispatchError,
+	DispatchResult, FixedU128,
 };
 use sp_std::prelude::*;
 use xcm::latest::prelude::*;
@@ -38,12 +39,7 @@ pub mod incentives;
 pub mod mocks;
 pub mod stable_asset;
 
-pub use crate::dex::*;
-pub use crate::evm::*;
-pub use crate::homa::*;
-pub use crate::honzon::*;
-pub use crate::incentives::*;
-pub use crate::stable_asset::*;
+pub use crate::{dex::*, evm::*, homa::*, honzon::*, incentives::*, stable_asset::*};
 
 pub type Price = FixedU128;
 pub type ExchangeRate = FixedU128;
@@ -53,7 +49,9 @@ pub type Rate = FixedU128;
 pub trait PriceProvider<CurrencyId> {
 	fn get_price(currency_id: CurrencyId) -> Option<Price>;
 	fn get_relative_price(base: CurrencyId, quote: CurrencyId) -> Option<Price> {
-		if let (Some(base_price), Some(quote_price)) = (Self::get_price(base), Self::get_price(quote)) {
+		if let (Some(base_price), Some(quote_price)) =
+			(Self::get_price(base), Self::get_price(quote))
+		{
 			base_price.checked_div(&quote_price)
 		} else {
 			None
@@ -75,13 +73,21 @@ pub trait ExchangeRateProvider {
 }
 
 pub trait TransactionPayment<AccountId, Balance, NegativeImbalance> {
-	fn reserve_fee(who: &AccountId, fee: Balance, named: Option<ReserveIdentifier>) -> Result<Balance, DispatchError>;
+	fn reserve_fee(
+		who: &AccountId,
+		fee: Balance,
+		named: Option<ReserveIdentifier>,
+	) -> Result<Balance, DispatchError>;
 	fn unreserve_fee(who: &AccountId, fee: Balance, named: Option<ReserveIdentifier>) -> Balance;
 	fn unreserve_and_charge_fee(
 		who: &AccountId,
 		weight: Weight,
 	) -> Result<(Balance, NegativeImbalance), TransactionValidityError>;
-	fn refund_fee(who: &AccountId, weight: Weight, payed: NegativeImbalance) -> Result<(), TransactionValidityError>;
+	fn refund_fee(
+		who: &AccountId,
+		weight: Weight,
+		payed: NegativeImbalance,
+	) -> Result<(), TransactionValidityError>;
 	fn charge_fee(
 		who: &AccountId,
 		len: u32,
@@ -96,7 +102,11 @@ pub trait TransactionPayment<AccountId, Balance, NegativeImbalance> {
 
 /// Used to interface with the Compound's Cash module
 pub trait CompoundCashTrait<Balance, Moment> {
-	fn set_future_yield(next_cash_yield: Balance, yield_index: u128, timestamp_effective: Moment) -> DispatchResult;
+	fn set_future_yield(
+		next_cash_yield: Balance,
+		yield_index: u128,
+		timestamp_effective: Moment,
+	) -> DispatchResult;
 }
 
 pub trait CallBuilder {
@@ -134,7 +144,10 @@ pub trait CallBuilder {
 	///  params:
 	/// - to: The destination for the transfer
 	/// - amount: The amount of staking currency to be transferred.
-	fn balances_transfer_keep_alive(to: Self::AccountId, amount: Self::Balance) -> Self::RelayChainCall;
+	fn balances_transfer_keep_alive(
+		to: Self::AccountId,
+		amount: Self::Balance,
+	) -> Self::RelayChainCall;
 
 	/// Wrap the final calls into the Xcm format.
 	///  params:
@@ -142,7 +155,11 @@ pub trait CallBuilder {
 	/// - extra_fee: Extra fee (in staking currency) used for buy the `weight` and `debt`.
 	/// - weight: the weight limit used for XCM.
 	/// - debt: the weight limit used to process the `call`.
-	fn finalize_call_into_xcm_message(call: Self::RelayChainCall, extra_fee: Self::Balance, weight: Weight) -> Xcm<()>;
+	fn finalize_call_into_xcm_message(
+		call: Self::RelayChainCall,
+		extra_fee: Self::Balance,
+		weight: Weight,
+	) -> Xcm<()>;
 }
 
 /// Dispatchable tasks

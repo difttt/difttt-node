@@ -22,10 +22,17 @@ use xcm::latest::prelude::*;
 
 pub trait HomaSubAccountXcm<AccountId, Balance> {
 	/// Cross-chain transfer staking currency to sub account on relaychain.
-	fn transfer_staking_to_sub_account(sender: &AccountId, sub_account_index: u16, amount: Balance) -> DispatchResult;
+	fn transfer_staking_to_sub_account(
+		sender: &AccountId,
+		sub_account_index: u16,
+		amount: Balance,
+	) -> DispatchResult;
 	/// Send XCM message to the relaychain for sub account to withdraw_unbonded staking currency and
 	/// send it back.
-	fn withdraw_unbonded_from_sub_account(sub_account_index: u16, amount: Balance) -> DispatchResult;
+	fn withdraw_unbonded_from_sub_account(
+		sub_account_index: u16,
+		amount: Balance,
+	) -> DispatchResult;
 	/// Send XCM message to the relaychain for sub account to bond extra.
 	fn bond_extra_on_sub_account(sub_account_index: u16, amount: Balance) -> DispatchResult;
 	/// Send XCM message to the relaychain for sub account to unbond.
