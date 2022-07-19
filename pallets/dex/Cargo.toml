@@ -1,5 +1,5 @@
 [package]
-name = "module-dex"
+name = "pallet-dex"
 version = "2.8.2"
 authors = ["Acala Developers"]
 edition = "2021"
@@ -15,7 +15,7 @@ frame-system = { git = "https://github.com/paritytech/substrate", branch = "polk
 sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.24", default-features = false }
 orml-traits = { path = "../../open-runtime-module-library/orml/traits", default-features = false }
 support = { package = "module-support", path = "../support", default-features = false }
-primitives = { package = "acala-primitives", path = "../../primitives", default-features = false }
+# primitives = { package = "acala-primitives", path = "../../primitives", default-features = false }
 
 [dev-dependencies]
 orml-tokens = { path = "../../open-runtime-module-library/tokens" }

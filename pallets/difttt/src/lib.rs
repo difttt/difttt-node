@@ -6,10 +6,11 @@ use frame_support::{traits::ConstU32, BoundedVec};
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
 /// <https://docs.substrate.io/v3/runtime/frame>
 pub use pallet::*;
+use pallet_dex::*;
+use primitives::{Balance, CurrencyId, TradingPair, SwapLimit<Balance>};
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 use sp_std::cmp::{Eq, PartialEq};
-use module-dex::*;
 
 #[cfg(test)]
 mod mock;
@@ -34,7 +35,8 @@ pub enum Triger<Balance> {
 	Arh999LT(u64, u64, u64), /* insert_time,  indicator, seconds buy interval   //todo,
 	                     * indicator use float */
 	TransferProtect(u64, Balance, u64), /* limit amout per transfer, transfer count limit per
-	                                     * 100 blocks */
+
+										* 100 blocks */
 	OakTimer(u64, u64, u64), //insert_time, cycle_seconds, repeat times,
 }
 
@@ -95,6 +97,7 @@ pub mod pallet {
 	use codec::alloc::string::ToString;
 	use data_encoding::BASE64;
 	use frame_support::{
+		dispatch::DispatchResultWithPostInfo,
 		ensure,
 		pallet_prelude::*,
 		traits::{BalanceStatus, UnixTime},
@@ -119,6 +122,7 @@ pub mod pallet {
 	use sp_std::{collections::btree_map::BTreeMap, prelude::*, str};
 
 	use crate::TransferProtectInterface;
+	// use pallet_dex::traits::BuyTokenInterface;
 	use sp_runtime::{
 		traits::{AtLeast32BitUnsigned, Bounded, CheckedAdd, MaybeSerializeDeserialize, Zero},
 		DispatchResult, RuntimeDebug,
@@ -214,6 +218,8 @@ pub mod pallet {
 		type WeightInfo: WeightInfo;
 
 		type Currency: MultiReservableCurrency<Self::AccountId>;
+
+		type BuyToken: BuyTokenInterface;
 	}
 
 	#[pallet::pallet]
@@ -303,6 +309,8 @@ pub mod pallet {
 		OrderCreated(u64, OrderOf<T>),
 		OrderTaken(T::AccountId, u64, OrderOf<T>),
 		OrderCancelled(u64),
+		// SwapToken(T::AccountId, &[CurrencyId], SwapLimit<BalanceOf>),
+		// BuyToken(T::AccountId, &[CurrencyId], BalanceOf, BalanceOf),
 	}
 
 	// Errors inform users that something went wrong.
@@ -473,6 +481,44 @@ pub mod pallet {
 			})?;
 
 			Ok(())
+		}
+
+		//buy token
+		//method 1
+		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity())]
+		pub fn buy_token_in_difttt(
+			origin: OriginFor<T>,
+			path: &[CurrencyId],
+			token_a: Balance,
+			token_b: Balance,
+		) -> DispatchResultWithPostInfo {
+			let who = ensure_signed(origin)?;
+
+			let balance = T::buy_token(who, path, token_a, token_b)?;
+
+			log::info!("actual_target_amount is: {:?}", balance);
+
+			Self::deposit_event(Event::BuyToken(who, path, token_a, token_b));
+
+			Ok(().into())
+		}
+
+		//method 2
+		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity())]
+		pub fn swap_token_in_difttt(
+			origin: OriginFor<T>,
+			path: &[CurrencyId],
+			limit: SwapLimit<Balance>,
+		) -> DispatchResultWithPostInfo {
+			let who = ensure_signed(origin)?;
+
+			let balance = T::swap_token(who, path, limit)?;
+
+			log::info!("actual_target_amount is: {:?}", balance);
+
+			Self::deposit_event(Event::SwapToken(who, path, limit));
+
+			Ok(().into())
 		}
 
 		#[pallet::weight(0)]
@@ -817,8 +863,8 @@ pub mod pallet {
 										timestamp_now.as_secs() - recipe.last_triger_timestamp,
 										interval
 									);
-									if timestamp_now.as_secs() - recipe.last_triger_timestamp >
-										interval
+									if timestamp_now.as_secs() - recipe.last_triger_timestamp
+										> interval
 									{
 										log::info!("#### in time check");
 										(*recipe).last_triger_timestamp = timestamp_now.as_secs();
@@ -867,7 +913,7 @@ pub mod pallet {
 								Ok(v) => v,
 								Err(e) => {
 									log::info!("###### decode message error  {:?}", e);
-									continue
+									continue;
 								},
 							};
 
@@ -901,7 +947,7 @@ pub mod pallet {
 								},
 								Err(e) => {
 									log::info!("###### submit_unsigned_transaction error  {:?}", e);
-									continue
+									continue;
 								},
 							};
 
@@ -909,7 +955,7 @@ pub mod pallet {
 								Ok(v) => v,
 								Err(e) => {
 									log::info!("###### submit_unsigned_transaction error  {:?}", e);
-									continue
+									continue;
 								},
 							};
 
@@ -939,7 +985,7 @@ pub mod pallet {
 							Ok(v) => v,
 							Err(e) => {
 								log::info!("###### decode url error  {:?}", e);
-								continue
+								continue;
 							},
 						};
 
@@ -948,7 +994,7 @@ pub mod pallet {
 								Ok(v) => v,
 								Err(e) => {
 									log::info!("###### decode token error  {:?}", e);
-									continue
+									continue;
 								},
 							};
 
@@ -958,7 +1004,7 @@ pub mod pallet {
 							Ok(v) => v,
 							Err(e) => {
 								log::info!("###### decode revicer error  {:?}", e);
-								continue
+								continue;
 							},
 						};
 
@@ -967,7 +1013,7 @@ pub mod pallet {
 								Ok(v) => v,
 								Err(e) => {
 									log::info!("###### decode title error  {:?}", e);
-									continue
+									continue;
 								},
 							};
 
@@ -976,7 +1022,7 @@ pub mod pallet {
 								Ok(v) => v,
 								Err(e) => {
 									log::info!("###### decode body error  {:?}", e);
-									continue
+									continue;
 								},
 							};
 
@@ -1028,7 +1074,7 @@ pub mod pallet {
 							Ok(v) => v,
 							Err(e) => {
 								log::info!("###### decode token_name error  {:?}", e);
-								continue
+								continue;
 							},
 						};
 						let source_url = match scale_info::prelude::string::String::from_utf8(
@@ -1037,7 +1083,7 @@ pub mod pallet {
 							Ok(v) => v,
 							Err(e) => {
 								log::info!("###### decode source_url error  {:?}", e);
-								continue
+								continue;
 							},
 						};
 						let options = scale_info::prelude::format!(
@@ -1146,7 +1192,7 @@ pub mod pallet {
 							Ok(v) => v,
 							Err(e) => {
 								log::info!("###### decode sell_token_name error  {:?}", e);
-								continue
+								continue;
 							},
 						};
 
@@ -1156,7 +1202,7 @@ pub mod pallet {
 							Ok(v) => v,
 							Err(e) => {
 								log::info!("###### decode buy_token_name error  {:?}", e);
-								continue
+								continue;
 							},
 						};
 
@@ -1184,7 +1230,7 @@ pub mod pallet {
 							Ok(v) => v,
 							Err(e) => {
 								log::info!("###### decode url error  {:?}", e);
-								continue
+								continue;
 							},
 						};
 
@@ -1194,7 +1240,7 @@ pub mod pallet {
 							Ok(v) => v,
 							Err(e) => {
 								log::info!("###### decode message error  {:?}", e);
-								continue
+								continue;
 							},
 						};
 
@@ -1264,8 +1310,9 @@ pub mod pallet {
 			};
 
 			match call {
-				Call::set_recipe_done_unsigned { block_number: _, recipe_id: _ } =>
-					valid_tx(b"set_recipe_done_unsigned".to_vec()),
+				Call::set_recipe_done_unsigned { block_number: _, recipe_id: _ } => {
+					valid_tx(b"set_recipe_done_unsigned".to_vec())
+				},
 				Call::update_recipe_triger_time_unsigned {
 					block_number: _,
 					recipe_id: _,
@@ -1317,7 +1364,7 @@ pub mod pallet {
 			// Let's check the status code before we proceed to reading the response.
 			if response.code != 200 {
 				log::warn!("Unexpected status code: {}", response.code);
-				return Err(http::Error::Unknown)
+				return Err(http::Error::Unknown);
 			}
 
 			// Next we want to fully read the response body and collect it to a vector of bytes.
@@ -1396,7 +1443,7 @@ pub mod pallet {
 			// Let's check the status code before we proceed to reading the response.
 			if response.code != 200 {
 				log::warn!("Unexpected status code: {}", response.code);
-				return Err(http::Error::Unknown)
+				return Err(http::Error::Unknown);
 			}
 
 			// Next we want to fully read the response body and collect it to a vector of bytes.
@@ -1416,7 +1463,7 @@ pub mod pallet {
 				Ok(v) => v,
 				Err(e) => {
 					log::error!("fetch_arh999 ParseError error 1: {:?}", e);
-					return Err(http::Error::Unknown)
+					return Err(http::Error::Unknown);
 				},
 			};
 
@@ -1427,7 +1474,7 @@ pub mod pallet {
 				Ok(v) => v,
 				Err(e) => {
 					log::info!("###### decode source_url error  {:?}", e);
-					return Err(http::Error::Unknown)
+					return Err(http::Error::Unknown);
 				},
 			};
 
@@ -1439,7 +1486,7 @@ pub mod pallet {
 				Ok(v) => v,
 				Err(e) => {
 					log::info!("###### decode parse error1  {:?}", e);
-					return Err(http::Error::Unknown)
+					return Err(http::Error::Unknown);
 				},
 			};
 			log::info!("### arh999_u64: {:?}", &arh999_u64);
@@ -1452,7 +1499,7 @@ pub mod pallet {
 				Ok(v) => v,
 				Err(e) => {
 					log::info!("###### decode parse error2  {:?}", e);
-					return Err(http::Error::Unknown)
+					return Err(http::Error::Unknown);
 				},
 			};
 			log::info!("### format_data: {:?}", &arh999_sub);
@@ -1474,10 +1521,10 @@ pub mod pallet {
 			let options = BASE64.encode(options.as_bytes());
 
 			//let url = "https://reqbin.com/echo/post/json";
-			let url = "http://127.0.0.1:8000/".to_owned() +
-				&dockr_url.to_owned() +
-				"/" + &options.to_owned() +
-				"/" + &max_run_num.to_string();
+			let url = "http://127.0.0.1:8000/".to_owned()
+				+ &dockr_url.to_owned()
+				+ "/" + &options.to_owned()
+				+ "/" + &max_run_num.to_string();
 
 			let request = http::Request::get(&url).add_header("content-type", "application/json");
 
@@ -1493,7 +1540,7 @@ pub mod pallet {
 
 			if response.code != 200 {
 				log::info!("Unexpected status code: {}", response.code);
-				return Err(http::Error::Unknown)
+				return Err(http::Error::Unknown);
 			}
 
 			let body = response.body().collect::<Vec<u8>>();
@@ -1506,7 +1553,7 @@ pub mod pallet {
 
 			if "ok" != body_str {
 				log::info!("publish task fail: {}", body_str);
-				return Err(http::Error::Unknown)
+				return Err(http::Error::Unknown);
 			}
 
 			Ok(0)
@@ -1541,7 +1588,7 @@ pub mod pallet {
 
 			if response.code != 200 {
 				log::info!("Unexpected status code: {}", response.code);
-				return Err(http::Error::Unknown)
+				return Err(http::Error::Unknown);
 			}
 
 			let body = response.body().collect::<Vec<u8>>();
@@ -1554,7 +1601,7 @@ pub mod pallet {
 
 			if body_str.len() > 0 {
 				let rt = scale_info::prelude::string::String::from(body_str);
-				return Ok(rt)
+				return Ok(rt);
 			};
 
 			Ok("".to_string())
@@ -1581,7 +1628,7 @@ pub mod pallet {
 
 			if response.code != 200 {
 				log::info!("Unexpected status code: {}", response.code);
-				return Err(http::Error::Unknown)
+				return Err(http::Error::Unknown);
 			}
 
 			let body = response.body().collect::<Vec<u8>>();
@@ -1594,7 +1641,7 @@ pub mod pallet {
 
 			if body_str.len() > 0 {
 				let rt = scale_info::prelude::string::String::from(body_str);
-				return Ok(rt)
+				return Ok(rt);
 			};
 
 			Ok("".to_string())
@@ -1619,7 +1666,7 @@ pub mod pallet {
 
 			if response.code != 200 {
 				log::info!("Unexpected status code: {}", response.code);
-				return Err(http::Error::Unknown)
+				return Err(http::Error::Unknown);
 			}
 
 			let body = response.body().collect::<Vec<u8>>();
@@ -1715,21 +1762,6 @@ pub mod pallet {
 		}
 		fn get_tx_block_limit() -> u64 {
 			TxBlockLimit::<T>::get().unwrap_or(3)
-		}
-	}
-
-	impl<T:Config> BuyTokenInterface<BalanceOf<T>> for Pallet<T> {
-		fn buyToken(sell_token_name:CurrencyId,buy_token_name:CurrencyId,amount:BalanceOf) {
-
-			//换算机制
-			//let price_sell = getPrice(sell_token_name)
-			//let price_buy = getPrice(buy_token_name)
-			//amount_buy = (amount * price_sell) / price_buy
-
-			//更新账户余额
-			// sell_token_name.update(account.balance - amount);
-			// buy_token_name.update(account.balance + amount_buy);
-
 		}
 	}
 }

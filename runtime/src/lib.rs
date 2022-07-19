@@ -366,7 +366,24 @@ impl pallet_difttt::Config for Runtime {
 	type WeightInfo = pallet_difttt::weights::SubstrateWeight<Runtime>;
 
 	type Currency = Currencies;
+	type BuyToken = Dex;
 }
+
+/// Configure the pallet-dex in pallets/dex.
+impl pallet_dex::Config for Runtime {
+	type Event = Event;
+	type Currency = Currencies;
+	type GetExchangeFee = GetExchangeFee;
+	type TradingPathLimit = TradingPathLimit;
+	type PalletId = DEXPalletId;
+	type Erc20InfoMapping = EvmErc20InfoMapping<Runtime>;
+	type DEXIncentives = Incentives;
+	type WeightInfo = weights::module_dex::WeightInfo<Runtime>;
+	type ListingOrigin = EnsureRootOrHalfGeneralCouncil;
+	type ExtendedProvisioningBlocks = ExtendedProvisioningBlocks;
+	type OnLiquidityPoolUpdated = ();
+}
+
 
 impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime
 where
@@ -437,6 +454,7 @@ construct_runtime!(
 		DiftttModule: pallet_difttt,
 		Tokens: orml_tokens::{Pallet, Call, Storage, Event<T>, Config<T>},
 		Currencies: orml_currencies,
+		Dex: pallet_dex,
 	}
 );
 
