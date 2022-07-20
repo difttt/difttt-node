@@ -5,9 +5,6 @@ use frame_support::{traits::ConstU32, BoundedVec};
 /// Edit this file to define custom logic or remove it if it is not needed.
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
 /// <https://docs.substrate.io/v3/runtime/frame>
-pub use pallet::*;
-use pallet_dex::*;
-use primitives::{Balance, CurrencyId, TradingPair, SwapLimit<Balance>};
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 use sp_std::cmp::{Eq, PartialEq};
@@ -22,6 +19,7 @@ mod tests;
 mod benchmarking;
 
 pub mod weights;
+pub use pallet::*;
 pub use weights::WeightInfo;
 
 #[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
@@ -116,8 +114,9 @@ pub mod pallet {
 
 	use sp_std::{collections::btree_map::BTreeMap, prelude::*, str};
 
+	use pallet_dex::traits::SwapTokenInterface;
 	use primitives::transfer_protect::TransferProtectInterface;
-	// use pallet_dex::traits::BuyTokenInterface;
+
 	use sp_runtime::{
 		traits::{AtLeast32BitUnsigned, Bounded, CheckedAdd, MaybeSerializeDeserialize, Zero},
 		DispatchResult, RuntimeDebug,
@@ -214,7 +213,7 @@ pub mod pallet {
 
 		type Currency: MultiReservableCurrency<Self::AccountId>;
 
-		type BuyToken: BuyTokenInterface;
+		type SwapToken: SwapTokenInterface<Self::AccountId, Balance, CurrencyId>;
 	}
 
 	#[pallet::pallet]
@@ -476,44 +475,6 @@ pub mod pallet {
 			})?;
 
 			Ok(())
-		}
-
-		//buy token
-		//method 1
-		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity())]
-		pub fn buy_token_in_difttt(
-			origin: OriginFor<T>,
-			path: &[CurrencyId],
-			token_a: Balance,
-			token_b: Balance,
-		) -> DispatchResultWithPostInfo {
-			let who = ensure_signed(origin)?;
-
-			let balance = T::buy_token(who, path, token_a, token_b)?;
-
-			log::info!("actual_target_amount is: {:?}", balance);
-
-			Self::deposit_event(Event::BuyToken(who, path, token_a, token_b));
-
-			Ok(().into())
-		}
-
-		//method 2
-		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity())]
-		pub fn swap_token_in_difttt(
-			origin: OriginFor<T>,
-			path: &[CurrencyId],
-			limit: SwapLimit<Balance>,
-		) -> DispatchResultWithPostInfo {
-			let who = ensure_signed(origin)?;
-
-			let balance = T::swap_token(who, path, limit)?;
-
-			log::info!("actual_target_amount is: {:?}", balance);
-
-			Self::deposit_event(Event::SwapToken(who, path, limit));
-
-			Ok(().into())
 		}
 
 		#[pallet::weight(0)]
