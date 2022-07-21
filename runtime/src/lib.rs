@@ -6,6 +6,7 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+use module_asset_registry::{AssetIdMaps, EvmErc20InfoMapping};
 use pallet_grandpa::{
 	fg_primitives, AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList,
 };
@@ -366,7 +367,14 @@ impl pallet_difttt::Config for Runtime {
 	type WeightInfo = pallet_difttt::weights::SubstrateWeight<Runtime>;
 
 	type Currency = Currencies;
-	type BuyToken = Dex;
+	type SwapToken = Dex;
+}
+
+parameter_types! {
+	pub const GetExchangeFee: (u32, u32) = (3, 1000);	// 0.3%
+	pub const ExtendedProvisioningBlocks: BlockNumber = 2 * DAYS;
+	pub const TradingPathLimit: u32 = 4;
+	pub const DEXPalletId: PalletId = PalletId(*b"aca/dexm");
 }
 
 /// Configure the pallet-dex in pallets/dex.
@@ -378,7 +386,7 @@ impl pallet_dex::Config for Runtime {
 	type PalletId = DEXPalletId;
 	type Erc20InfoMapping = EvmErc20InfoMapping<Runtime>;
 	type DEXIncentives = Incentives;
-	type WeightInfo = weights::module_dex::WeightInfo<Runtime>;
+	type WeightInfo = WeightInfo;
 	type ListingOrigin = EnsureRootOrHalfGeneralCouncil;
 	type ExtendedProvisioningBlocks = ExtendedProvisioningBlocks;
 	type OnLiquidityPoolUpdated = ();
@@ -449,11 +457,11 @@ construct_runtime!(
 		Assets: pallet_assets,
 		TransactionPayment: pallet_transaction_payment,
 		Sudo: pallet_sudo,
+		Dex: pallet_dex,
 		// Include the custom logic from the pallet-difttt in the runtime.
 		DiftttModule: pallet_difttt,
 		Tokens: orml_tokens::{Pallet, Call, Storage, Event<T>, Config<T>},
 		Currencies: orml_currencies,
-		Dex: pallet_dex,
 	}
 );
 

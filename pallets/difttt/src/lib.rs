@@ -116,6 +116,7 @@ pub mod pallet {
 
 	use pallet_dex::traits::SwapTokenInterface;
 	use primitives::transfer_protect::TransferProtectInterface;
+	use primitives::{AccountId, Balance, CurrencyId};
 
 	use sp_runtime::{
 		traits::{AtLeast32BitUnsigned, Bounded, CheckedAdd, MaybeSerializeDeserialize, Zero},
