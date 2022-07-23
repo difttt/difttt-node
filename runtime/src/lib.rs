@@ -6,7 +6,7 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-use module_asset_registry::{AssetIdMaps, EvmErc20InfoMapping};
+// use module_asset_registry::{AssetIdMaps, EvmErc20InfoMapping};
 use pallet_grandpa::{
 	fg_primitives, AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList,
 };
@@ -25,6 +25,8 @@ use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
 use orml_currencies::BasicCurrencyAdapter;
+use orml_traits::MultiReservableCurrency;
+use sp_runtime::DispatchResult;
 
 // A few exports that help ease life for downstream crates.
 pub use codec::{Decode, Encode, MaxEncodedLen};
@@ -38,18 +40,22 @@ pub use frame_support::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
 		IdentityFee, Weight,
 	},
-	RuntimeDebug, StorageValue,
+	PalletId, RuntimeDebug, StorageValue,
 };
 pub use frame_system::{Call as SystemCall, EnsureRoot};
 
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::CurrencyAdapter;
+use primitives::evm::EvmAddress;
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 pub use sp_runtime::{Perbill, Permill, SaturatedConversion};
+use support::{DEXIncentives, DEXManager, Erc20InfoMapping, ExchangeRate, Ratio, SwapLimit};
+
+pub use primitives::{CurrencyId, TokenSymbol};
 
 /// Import the template pallet.
 pub use pallet_difttt;
@@ -299,28 +305,6 @@ impl pallet_sudo::Config for Runtime {
 
 pub type Amount = i128;
 
-#[derive(
-	Encode,
-	Decode,
-	Eq,
-	PartialEq,
-	Copy,
-	Clone,
-	PartialOrd,
-	Ord,
-	RuntimeDebug,
-	MaxEncodedLen,
-	TypeInfo,
-)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub enum CurrencyId {
-	Native,
-	USDT,
-	BTC,
-	DOT,
-	KSM,
-}
-
 orml_traits::parameter_type_with_key! {
 	pub ExistentialDeposits: |_currency_id: CurrencyId| -> Balance {
 		0
@@ -344,7 +328,7 @@ impl orml_tokens::Config for Runtime {
 }
 
 parameter_types! {
-	pub const GetNativeCurrencyId: CurrencyId = CurrencyId::Native;
+	pub const GetNativeCurrencyId: CurrencyId = CurrencyId::Token(TokenSymbol::ACA);
 }
 
 impl orml_currencies::Config for Runtime {
@@ -377,6 +361,79 @@ parameter_types! {
 	pub const DEXPalletId: PalletId = PalletId(*b"aca/dexm");
 }
 
+pub struct MockErc20InfoMapping;
+
+// pub const H160_POSITION_TOKEN: usize = 19;
+// impl Erc20InfoMapping for MockErc20InfoMapping {
+// 	fn name(currency_id: CurrencyId) -> Option<Vec<u8>> {
+// 		currency_id.name().map(|v| v.as_bytes().to_vec())
+// 	}
+
+// 	fn symbol(currency_id: CurrencyId) -> Option<Vec<u8>> {
+// 		currency_id.symbol().map(|v| v.as_bytes().to_vec())
+// 	}
+
+// 	fn decimals(currency_id: CurrencyId) -> Option<u8> {
+// 		currency_id.decimals()
+// 	}
+
+// 	fn encode_evm_address(v: CurrencyId) -> Option<EvmAddress> {
+// 		EvmAddress::try_from(v).ok()
+// 	}
+
+// 	fn decode_evm_address(v: EvmAddress) -> Option<CurrencyId> {
+// 		let token = v.as_bytes()[H160_POSITION_TOKEN]
+// 			.try_into()
+// 			.map(CurrencyId::Token)
+// 			.ok()?;
+// 		EvmAddress::try_from(token)
+// 			.map(|addr| if addr == v { Some(token) } else { None })
+// 			.ok()?
+// 	}
+// }
+
+impl Erc20InfoMapping for MockErc20InfoMapping {
+	fn name(_currency_id: CurrencyId) -> Option<Vec<u8>> {
+		None
+	}
+
+	fn symbol(_currency_id: CurrencyId) -> Option<Vec<u8>> {
+		None
+	}
+
+	fn decimals(_currency_id: CurrencyId) -> Option<u8> {
+		None
+	}
+
+	fn encode_evm_address(_v: CurrencyId) -> Option<EvmAddress> {
+		None
+	}
+
+	fn decode_evm_address(_v: EvmAddress) -> Option<CurrencyId> {
+		None
+	}
+}
+
+pub struct MockDEXIncentives;
+impl DEXIncentives<AccountId, CurrencyId, Balance> for MockDEXIncentives {
+	fn do_deposit_dex_share(
+		who: &AccountId,
+		lp_currency_id: CurrencyId,
+		amount: Balance,
+	) -> DispatchResult {
+		Tokens::reserve(lp_currency_id, who, amount)
+	}
+
+	fn do_withdraw_dex_share(
+		who: &AccountId,
+		lp_currency_id: CurrencyId,
+		amount: Balance,
+	) -> DispatchResult {
+		let _ = Tokens::unreserve(lp_currency_id, who, amount);
+		Ok(())
+	}
+}
+
 /// Configure the pallet-dex in pallets/dex.
 impl pallet_dex::Config for Runtime {
 	type Event = Event;
@@ -384,10 +441,10 @@ impl pallet_dex::Config for Runtime {
 	type GetExchangeFee = GetExchangeFee;
 	type TradingPathLimit = TradingPathLimit;
 	type PalletId = DEXPalletId;
-	type Erc20InfoMapping = EvmErc20InfoMapping<Runtime>;
-	type DEXIncentives = Incentives;
-	type WeightInfo = WeightInfo;
-	type ListingOrigin = EnsureRootOrHalfGeneralCouncil;
+	type Erc20InfoMapping = MockErc20InfoMapping;
+	type DEXIncentives = MockDEXIncentives;
+	type WeightInfo = ();
+	// type ListingOrigin = EnsureRootOrHalfGeneralCouncil;
 	type ExtendedProvisioningBlocks = ExtendedProvisioningBlocks;
 	type OnLiquidityPoolUpdated = ();
 }

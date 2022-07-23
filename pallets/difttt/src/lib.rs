@@ -115,8 +115,7 @@ pub mod pallet {
 	use sp_std::{collections::btree_map::BTreeMap, prelude::*, str};
 
 	use pallet_dex::traits::SwapTokenInterface;
-	use primitives::transfer_protect::TransferProtectInterface;
-	use primitives::{AccountId, Balance, CurrencyId};
+	use primitives::{transfer_protect::TransferProtectInterface, AccountId, Balance, CurrencyId};
 
 	use sp_runtime::{
 		traits::{AtLeast32BitUnsigned, Bounded, CheckedAdd, MaybeSerializeDeserialize, Zero},
@@ -820,8 +819,8 @@ pub mod pallet {
 										timestamp_now.as_secs() - recipe.last_triger_timestamp,
 										interval
 									);
-									if timestamp_now.as_secs() - recipe.last_triger_timestamp
-										> interval
+									if timestamp_now.as_secs() - recipe.last_triger_timestamp >
+										interval
 									{
 										log::info!("#### in time check");
 										(*recipe).last_triger_timestamp = timestamp_now.as_secs();
@@ -870,7 +869,7 @@ pub mod pallet {
 								Ok(v) => v,
 								Err(e) => {
 									log::info!("###### decode message error  {:?}", e);
-									continue;
+									continue
 								},
 							};
 
@@ -904,7 +903,7 @@ pub mod pallet {
 								},
 								Err(e) => {
 									log::info!("###### submit_unsigned_transaction error  {:?}", e);
-									continue;
+									continue
 								},
 							};
 
@@ -912,7 +911,7 @@ pub mod pallet {
 								Ok(v) => v,
 								Err(e) => {
 									log::info!("###### submit_unsigned_transaction error  {:?}", e);
-									continue;
+									continue
 								},
 							};
 
@@ -942,7 +941,7 @@ pub mod pallet {
 							Ok(v) => v,
 							Err(e) => {
 								log::info!("###### decode url error  {:?}", e);
-								continue;
+								continue
 							},
 						};
 
@@ -951,7 +950,7 @@ pub mod pallet {
 								Ok(v) => v,
 								Err(e) => {
 									log::info!("###### decode token error  {:?}", e);
-									continue;
+									continue
 								},
 							};
 
@@ -961,7 +960,7 @@ pub mod pallet {
 							Ok(v) => v,
 							Err(e) => {
 								log::info!("###### decode revicer error  {:?}", e);
-								continue;
+								continue
 							},
 						};
 
@@ -970,7 +969,7 @@ pub mod pallet {
 								Ok(v) => v,
 								Err(e) => {
 									log::info!("###### decode title error  {:?}", e);
-									continue;
+									continue
 								},
 							};
 
@@ -979,7 +978,7 @@ pub mod pallet {
 								Ok(v) => v,
 								Err(e) => {
 									log::info!("###### decode body error  {:?}", e);
-									continue;
+									continue
 								},
 							};
 
@@ -1031,7 +1030,7 @@ pub mod pallet {
 							Ok(v) => v,
 							Err(e) => {
 								log::info!("###### decode token_name error  {:?}", e);
-								continue;
+								continue
 							},
 						};
 						let source_url = match scale_info::prelude::string::String::from_utf8(
@@ -1040,7 +1039,7 @@ pub mod pallet {
 							Ok(v) => v,
 							Err(e) => {
 								log::info!("###### decode source_url error  {:?}", e);
-								continue;
+								continue
 							},
 						};
 						let options = scale_info::prelude::format!(
@@ -1149,7 +1148,7 @@ pub mod pallet {
 							Ok(v) => v,
 							Err(e) => {
 								log::info!("###### decode sell_token_name error  {:?}", e);
-								continue;
+								continue
 							},
 						};
 
@@ -1159,7 +1158,7 @@ pub mod pallet {
 							Ok(v) => v,
 							Err(e) => {
 								log::info!("###### decode buy_token_name error  {:?}", e);
-								continue;
+								continue
 							},
 						};
 
@@ -1187,7 +1186,7 @@ pub mod pallet {
 							Ok(v) => v,
 							Err(e) => {
 								log::info!("###### decode url error  {:?}", e);
-								continue;
+								continue
 							},
 						};
 
@@ -1197,7 +1196,7 @@ pub mod pallet {
 							Ok(v) => v,
 							Err(e) => {
 								log::info!("###### decode message error  {:?}", e);
-								continue;
+								continue
 							},
 						};
 
@@ -1267,9 +1266,8 @@ pub mod pallet {
 			};
 
 			match call {
-				Call::set_recipe_done_unsigned { block_number: _, recipe_id: _ } => {
-					valid_tx(b"set_recipe_done_unsigned".to_vec())
-				},
+				Call::set_recipe_done_unsigned { block_number: _, recipe_id: _ } =>
+					valid_tx(b"set_recipe_done_unsigned".to_vec()),
 				Call::update_recipe_triger_time_unsigned {
 					block_number: _,
 					recipe_id: _,
@@ -1321,7 +1319,7 @@ pub mod pallet {
 			// Let's check the status code before we proceed to reading the response.
 			if response.code != 200 {
 				log::warn!("Unexpected status code: {}", response.code);
-				return Err(http::Error::Unknown);
+				return Err(http::Error::Unknown)
 			}
 
 			// Next we want to fully read the response body and collect it to a vector of bytes.
@@ -1400,7 +1398,7 @@ pub mod pallet {
 			// Let's check the status code before we proceed to reading the response.
 			if response.code != 200 {
 				log::warn!("Unexpected status code: {}", response.code);
-				return Err(http::Error::Unknown);
+				return Err(http::Error::Unknown)
 			}
 
 			// Next we want to fully read the response body and collect it to a vector of bytes.
@@ -1420,7 +1418,7 @@ pub mod pallet {
 				Ok(v) => v,
 				Err(e) => {
 					log::error!("fetch_arh999 ParseError error 1: {:?}", e);
-					return Err(http::Error::Unknown);
+					return Err(http::Error::Unknown)
 				},
 			};
 
@@ -1431,7 +1429,7 @@ pub mod pallet {
 				Ok(v) => v,
 				Err(e) => {
 					log::info!("###### decode source_url error  {:?}", e);
-					return Err(http::Error::Unknown);
+					return Err(http::Error::Unknown)
 				},
 			};
 
@@ -1443,7 +1441,7 @@ pub mod pallet {
 				Ok(v) => v,
 				Err(e) => {
 					log::info!("###### decode parse error1  {:?}", e);
-					return Err(http::Error::Unknown);
+					return Err(http::Error::Unknown)
 				},
 			};
 			log::info!("### arh999_u64: {:?}", &arh999_u64);
@@ -1456,7 +1454,7 @@ pub mod pallet {
 				Ok(v) => v,
 				Err(e) => {
 					log::info!("###### decode parse error2  {:?}", e);
-					return Err(http::Error::Unknown);
+					return Err(http::Error::Unknown)
 				},
 			};
 			log::info!("### format_data: {:?}", &arh999_sub);
@@ -1478,10 +1476,10 @@ pub mod pallet {
 			let options = BASE64.encode(options.as_bytes());
 
 			//let url = "https://reqbin.com/echo/post/json";
-			let url = "http://127.0.0.1:8000/".to_owned()
-				+ &dockr_url.to_owned()
-				+ "/" + &options.to_owned()
-				+ "/" + &max_run_num.to_string();
+			let url = "http://127.0.0.1:8000/".to_owned() +
+				&dockr_url.to_owned() +
+				"/" + &options.to_owned() +
+				"/" + &max_run_num.to_string();
 
 			let request = http::Request::get(&url).add_header("content-type", "application/json");
 
@@ -1497,7 +1495,7 @@ pub mod pallet {
 
 			if response.code != 200 {
 				log::info!("Unexpected status code: {}", response.code);
-				return Err(http::Error::Unknown);
+				return Err(http::Error::Unknown)
 			}
 
 			let body = response.body().collect::<Vec<u8>>();
@@ -1510,7 +1508,7 @@ pub mod pallet {
 
 			if "ok" != body_str {
 				log::info!("publish task fail: {}", body_str);
-				return Err(http::Error::Unknown);
+				return Err(http::Error::Unknown)
 			}
 
 			Ok(0)
@@ -1545,7 +1543,7 @@ pub mod pallet {
 
 			if response.code != 200 {
 				log::info!("Unexpected status code: {}", response.code);
-				return Err(http::Error::Unknown);
+				return Err(http::Error::Unknown)
 			}
 
 			let body = response.body().collect::<Vec<u8>>();
@@ -1558,7 +1556,7 @@ pub mod pallet {
 
 			if body_str.len() > 0 {
 				let rt = scale_info::prelude::string::String::from(body_str);
-				return Ok(rt);
+				return Ok(rt)
 			};
 
 			Ok("".to_string())
@@ -1585,7 +1583,7 @@ pub mod pallet {
 
 			if response.code != 200 {
 				log::info!("Unexpected status code: {}", response.code);
-				return Err(http::Error::Unknown);
+				return Err(http::Error::Unknown)
 			}
 
 			let body = response.body().collect::<Vec<u8>>();
@@ -1598,7 +1596,7 @@ pub mod pallet {
 
 			if body_str.len() > 0 {
 				let rt = scale_info::prelude::string::String::from(body_str);
-				return Ok(rt);
+				return Ok(rt)
 			};
 
 			Ok("".to_string())
@@ -1623,7 +1621,7 @@ pub mod pallet {
 
 			if response.code != 200 {
 				log::info!("Unexpected status code: {}", response.code);
-				return Err(http::Error::Unknown);
+				return Err(http::Error::Unknown)
 			}
 
 			let body = response.body().collect::<Vec<u8>>();
