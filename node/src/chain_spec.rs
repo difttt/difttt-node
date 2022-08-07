@@ -2,15 +2,18 @@ use node_template_runtime::{
 	AccountId, AuraConfig, BalancesConfig, CurrencyId, DexConfig, GenesisConfig, GrandpaConfig,
 	Signature, SudoConfig, SystemConfig, TokensConfig, WASM_BINARY,
 };
+pub use primitives::{
+	currency::{
+		TokenInfo, ACA, AUSD, BNC, DOT, KAR, KBTC, KINT, KSM, KUSD, LCDOT, LDOT, LKSM, PHA, RENBTC,
+		VSKSM,
+	},
+	TokenSymbol, TradingPair,
+};
 use sc_service::ChainType;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{sr25519, Pair, Public};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{IdentifyAccount, Verify};
-pub use primitives::{
-	currency::{TokenInfo, ACA, AUSD, BNC, DOT, KAR, KBTC, KINT, KSM, KUSD, LCDOT, LDOT, LKSM, PHA, RENBTC, VSKSM},
-	TradingPair, TokenSymbol
-};
 
 // The URL for the telemetry server.
 // const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
@@ -163,10 +166,18 @@ fn testnet_genesis(
 		},
 		assets: Default::default(),
 		transaction_payment: Default::default(),
-		tokens: TokensConfig { balances: vec![
-			(root_key.clone(), AUSD, INITIAL_BALANCE),
-			(root_key.clone(), RENBTC, INITIAL_BALANCE)
-		] },
+		tokens: TokensConfig {
+			balances: endowed_accounts
+				.iter()
+				.flat_map(|x| {
+					vec![
+						(x.clone(), AUSD, INITIAL_BALANCE),
+						(x.clone(), RENBTC, INITIAL_BALANCE),
+						(x.clone(), DOT, INITIAL_BALANCE),
+					]
+				})
+				.collect(),
+		},
 		dex: DexConfig {
 			initial_listing_trading_pairs: vec![],
 			initial_enabled_trading_pairs: vec![
@@ -176,7 +187,14 @@ fn testnet_genesis(
 			initial_added_liquidity_pools: vec![(
 				root_key.clone(),
 				vec![
-					(TradingPair::from_currency_ids(CurrencyId::Token(TokenSymbol::AUSD), CurrencyId::Token(TokenSymbol::RENBTC)).unwrap(), (1_000_000u128, 2_000_000u128)),
+					(
+						TradingPair::from_currency_ids(AUSD, RENBTC).unwrap(),
+						(1_000_000 * DOLLARS, 2_000_000 * DOLLARS),
+					),
+					(
+						TradingPair::from_currency_ids(AUSD, DOT).unwrap(),
+						(1_000_000 * DOLLARS, 2_000_000 * DOLLARS),
+					),
 				],
 			)],
 		},

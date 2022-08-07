@@ -514,11 +514,11 @@ construct_runtime!(
 		Assets: pallet_assets,
 		TransactionPayment: pallet_transaction_payment,
 		Sudo: pallet_sudo,
-		Dex: pallet_dex,
 		// Include the custom logic from the pallet-difttt in the runtime.
 		DiftttModule: pallet_difttt,
 		Tokens: orml_tokens::{Pallet, Call, Storage, Event<T>, Config<T>},
 		Currencies: orml_currencies,
+		Dex: pallet_dex,
 	}
 );
 
