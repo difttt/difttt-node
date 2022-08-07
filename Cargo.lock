@@ -3950,6 +3950,7 @@ dependencies = [
 name = "node-template"
 version = "4.0.0-dev"
 dependencies = [
+ "acala-primitives",
  "clap",
  "frame-benchmarking",
  "frame-benchmarking-cli",
@@ -3992,6 +3993,7 @@ dependencies = [
 name = "node-template-runtime"
 version = "4.0.0-dev"
 dependencies = [
+ "acala-primitives",
  "frame-benchmarking",
  "frame-executive",
  "frame-support",
@@ -4001,6 +4003,7 @@ dependencies = [
  "frame-try-runtime",
  "hex-literal",
  "log",
+ "module-support",
  "orml-currencies",
  "orml-tokens",
  "orml-traits",

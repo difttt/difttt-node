@@ -7,12 +7,22 @@ use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{sr25519, Pair, Public};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{IdentifyAccount, Verify};
+pub use primitives::{
+	currency::{TokenInfo, ACA, AUSD, BNC, DOT, KAR, KBTC, KINT, KSM, KUSD, LCDOT, LDOT, LKSM, PHA, RENBTC, VSKSM},
+	TradingPair, TokenSymbol
+};
 
 // The URL for the telemetry server.
 // const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 
 /// Specialized `ChainSpec`. This is a specialization of the general Substrate ChainSpec type.
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig>;
+
+pub const MILLICENTS: u128 = 1_000_000_000;
+pub const CENTS: u128 = 1_000 * MILLICENTS; // assume this is worth about a cent.
+pub const DOLLARS: u128 = 100 * CENTS;
+
+const INITIAL_BALANCE: u128 = 10_000_000 * DOLLARS;
 
 /// Generate a crypto pair from seed.
 pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
@@ -153,11 +163,22 @@ fn testnet_genesis(
 		},
 		assets: Default::default(),
 		transaction_payment: Default::default(),
-		tokens: TokensConfig { balances: vec![] },
+		tokens: TokensConfig { balances: vec![
+			(root_key.clone(), AUSD, INITIAL_BALANCE),
+			(root_key.clone(), RENBTC, INITIAL_BALANCE)
+		] },
 		dex: DexConfig {
 			initial_listing_trading_pairs: vec![],
-			initial_enabled_trading_pairs: vec![],
-			initial_added_liquidity_pools: vec![],
+			initial_enabled_trading_pairs: vec![
+				TradingPair::from_currency_ids(AUSD, RENBTC).unwrap(),
+				TradingPair::from_currency_ids(AUSD, DOT).unwrap(),
+			],
+			initial_added_liquidity_pools: vec![(
+				root_key.clone(),
+				vec![
+					(TradingPair::from_currency_ids(CurrencyId::Token(TokenSymbol::AUSD), CurrencyId::Token(TokenSymbol::RENBTC)).unwrap(), (1_000_000u128, 2_000_000u128)),
+				],
+			)],
 		},
 	}
 }
