@@ -241,7 +241,7 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 		amount: Self::Balance,
 	) -> DispatchResult {
 		if amount.is_zero() || from == to {
-			return Ok(())
+			return Ok(());
 		}
 		if currency_id == T::GetNativeCurrencyId::get() {
 			T::NativeCurrency::transfer(from, to, amount)
@@ -256,7 +256,7 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 		amount: Self::Balance,
 	) -> DispatchResult {
 		if amount.is_zero() {
-			return Ok(())
+			return Ok(());
 		}
 		if currency_id == T::GetNativeCurrencyId::get() {
 			T::NativeCurrency::deposit(who, amount)
@@ -271,7 +271,7 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 		amount: Self::Balance,
 	) -> DispatchResult {
 		if amount.is_zero() {
-			return Ok(())
+			return Ok(());
 		}
 		if currency_id == T::GetNativeCurrencyId::get() {
 			T::NativeCurrency::withdraw(who, amount)

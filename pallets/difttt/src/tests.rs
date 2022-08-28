@@ -63,7 +63,8 @@ fn create_action_should_work() {
 			Origin::signed(Public::from_raw([0; 32])),
 			mail_with_token
 		)); //枚举实例一，通过
-		assert_ok!(DiftttModule::create_action(Origin::signed(Public::from_raw([0; 32])), oracle)); //枚举实例二，通过
+		assert_ok!(DiftttModule::create_action(Origin::signed(Public::from_raw([0; 32])), oracle));
+		//枚举实例二，通过
 	});
 }
 

@@ -185,8 +185,9 @@ where
 			C::convert_balance_back(amount, GetCurrencyId::get()),
 		);
 		match res {
-			WithdrawConsequence::ReducedToZero(b) =>
-				WithdrawConsequence::ReducedToZero(C::convert_balance(b, GetCurrencyId::get())),
+			WithdrawConsequence::ReducedToZero(b) => {
+				WithdrawConsequence::ReducedToZero(C::convert_balance(b, GetCurrencyId::get()))
+			},
 			NoFunds => NoFunds,
 			WouldDie => WouldDie,
 			UnknownAsset => UnknownAsset,

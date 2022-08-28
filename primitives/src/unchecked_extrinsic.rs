@@ -189,12 +189,12 @@ impl<Call, Extra, ConvertEthTx, StorageDepositPerByte, TxFeePerGas, Lookup, Chec
 
 				if !eth_msg.tip.is_zero() {
 					// Not yet supported, require zero tip
-					return Err(InvalidTransaction::BadProof.into())
+					return Err(InvalidTransaction::BadProof.into());
 				}
 
 				if !eth_msg.access_list.len().is_zero() {
 					// Not yet supported, require empty
-					return Err(InvalidTransaction::BadProof.into())
+					return Err(InvalidTransaction::BadProof.into());
 				}
 
 				let (tx_gas_price, tx_gas_limit) =
@@ -224,7 +224,7 @@ impl<Call, Extra, ConvertEthTx, StorageDepositPerByte, TxFeePerGas, Lookup, Chec
 				let expected_account_id = lookup.lookup(addr)?;
 
 				if account_id != expected_account_id {
-					return Err(InvalidTransaction::BadProof.into())
+					return Err(InvalidTransaction::BadProof.into());
 				}
 
 				Ok(CheckedExtrinsic { signed: Some((account_id, eth_extra)), function })
@@ -268,7 +268,7 @@ impl<Call, Extra, ConvertEthTx, StorageDepositPerByte, TxFeePerGas, Lookup, Chec
 				let expected_account_id = lookup.lookup(addr)?;
 
 				if account_id != expected_account_id {
-					return Err(InvalidTransaction::BadProof.into())
+					return Err(InvalidTransaction::BadProof.into());
 				}
 
 				Ok(CheckedExtrinsic { signed: Some((account_id, eth_extra)), function })
@@ -286,7 +286,7 @@ impl<Call, Extra, ConvertEthTx, StorageDepositPerByte, TxFeePerGas, Lookup, Chec
 				let expected_account_id = lookup.lookup(addr)?;
 
 				if account_id != expected_account_id {
-					return Err(InvalidTransaction::BadProof.into())
+					return Err(InvalidTransaction::BadProof.into());
 				}
 
 				Ok(CheckedExtrinsic { signed: Some((account_id, eth_extra)), function })

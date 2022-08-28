@@ -46,7 +46,7 @@ impl<K: Decode + Sized, V: Decode + Sized, Hasher: ReversibleStorageHasher> Iter
 					}
 				},
 				None => None,
-			}
+			};
 		}
 	}
 }
@@ -67,7 +67,7 @@ impl<K: Decode + Sized, V: Decode + Sized, H: ReversibleStorageHasher> Iterator
 		// check accumulated iteration count
 		if let Some(remain_iterator_count) = self.remain_iterator_count {
 			if remain_iterator_count == 0 {
-				return None
+				return None;
 			} else {
 				self.remain_iterator_count = Some(remain_iterator_count - 1);
 			}
@@ -164,7 +164,7 @@ impl<T> Iterator for MapIterator<T> {
 							frame_support::print(
 								"ERROR: next_key returned a key with no value in MapIterator",
 							);
-							continue
+							continue;
 						},
 					};
 					if self.drain {
@@ -177,14 +177,14 @@ impl<T> Iterator for MapIterator<T> {
 							frame_support::print(
 								"ERROR: (key, value) failed to decode in MapIterator",
 							);
-							continue
+							continue;
 						},
 					};
 
 					Some(item)
 				},
 				None => None,
-			}
+			};
 		}
 	}
 }
@@ -203,7 +203,7 @@ impl<T> Iterator for MapIteratorShim<T> {
 		// check accumulated iteration count
 		if let Some(remain_iterator_count) = self.remain_iterator_count {
 			if remain_iterator_count == 0 {
-				return None
+				return None;
 			} else {
 				self.remain_iterator_count = Some(remain_iterator_count - 1);
 			}

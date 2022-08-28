@@ -25,7 +25,7 @@ pub trait DataProviderExtended<Key, TimestampedValue> {
 #[allow(dead_code)] // rust cannot detect usage in macro_rules
 pub fn median<T: Ord + Clone>(mut items: Vec<T>) -> Option<T> {
 	if items.is_empty() {
-		return None
+		return None;
 	}
 
 	let mid_index = items.len() / 2;

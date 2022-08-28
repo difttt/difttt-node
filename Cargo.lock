@@ -4397,6 +4397,7 @@ dependencies = [
  "frame-system",
  "lite-json",
  "log",
+ "module-support",
  "orml-traits",
  "orml-utilities",
  "pallet-dex",
